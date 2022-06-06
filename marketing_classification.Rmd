@@ -1,0 +1,655 @@
+---
+title: "Marketing Campaigns of Portuguese Bank"
+author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+fontsize: 10 pt
+geometry: margin=0.5in
+output:
+  pdf_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+  html_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+subtitle: Predict client subscription
+toc-title: Outline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
+```
+
+Delete all the possible objects of R that could have been left in memory:
+```{r, include=TRUE}
+rm(list = ls())
+```
+
+### Load packages
+At first, let's load the libraries we'll need:
+
+* *dplyr* and *ggplot2* will help us with data manipulation and graphs, respectively.
+* *kableExtra* will help us to print beautiful tables.
+* *gridExtra* for arranging the layout of the graphs.
+* *stats* computes hierarchical cluster analysis on a set of dissimilarities and methods for analyzing it ( _hclust_).
+* *cluster* to apply the _agnes_ (agglomerative hierarchical clustering) and the _diana_ (divisive hierarchical clustering).
+* *gplots* computes heatmaps for visualizing the distance matrix.
+* *factoextra* for MVA methods and graph the clustering structures.
+* *FactoMineR* computes hierarchical clustering on principal components.
+
+```{r message=FALSE,warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(gridExtra)
+library(stats)
+library(gplots)
+library(cluster)
+library(factoextra)
+library(FactoMineR)
+```
+
+
+
+# Exploratory data analysis
+
+The dataset we are going to use....
+A bried description of each variable:
+*
+*
+*
+
+At first let's load the data: 
+```{r}
+data = read.csv("bank.csv", sep = ";", header = TRUE)
+```
+
+```{r}
+head(data)
+```
+Since the data matrix contains one observation for each customer, we identify each individual with a progressive integer ID:
+
+```{r}
+data$ID <- seq.int(nrow(data))
+```
+
+```{r}
+head(data)
+```
+
+We can reorder columns so to have the id column as the first one:
+
+```{r}
+data <- data %>%
+  select(ID, everything())
+```
+
+```{r}
+head(data)
+```
+
+
+Check dimension:
+
+```{r}
+dim(data)
+```
+
+The dataset was correctly read: it has 4521 rows/observations and 18 columns/variables
+
+Check the structure:
+
+```{r}
+str(data)
+```
+As we can see, all categorical variables has been read as 'character' by R, so let's transform them into the 'factor' R data type:
+
+```{r}
+data[,"job"] = as.factor(data[,"job"])
+data[,"marital"] = as.factor(data[,"marital"])
+data[,"education"] = as.factor(data[,"education"])
+data[,"default"] = as.factor(data[,"default"])
+data[,"housing"] = as.factor(data[,"housing"])
+data[,"loan"] = as.factor(data[,"loan"])
+data[,"contact"] = as.factor(data[,"contact"])
+data[,"month"] = as.factor(data[,"month"])
+data[,"poutcome"] = as.factor(data[,"poutcome"])
+data[,"y"] = as.factor(data[,"y"])
+```
+
+We can check again the structure:
+
+```{r}
+str(data)
+```
+
+As we can see, the categorical variables have been all correclty converted into the 'factor' type.
+
+We can print a portion (a sample of 20) of the table using kable and the pipe operator, to better understand the structure of the variables:
+
+```{r}
+data %>%
+  sample_n(., 10, replace=FALSE) %>% 
+  kbl(caption = "Marketing Campaigns of Portuguese Bank (sample of 20)") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Let's now visualize some basic statistics on each of the data frame's columns with *summary*:
+
+```{r}
+data %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Marketing Campaigns of Portuguese Bank") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+The previous output allows to understand some important properties of the dataset. Firstly we can see the possible values assumed by each categorical variable.
+
+Some relevant observations that can be drawn are:
+* the dataset represent customers with a medium age of 41 years, which a pretty realistic scenario in a bank database
+* the 'marital' variable shows that the main customers of the bank are families, since most of the 'marital' variable values are in the 'married' category
+* the variable 'balance' assumes also negative values, indicating people with a negative balanced in their bank account
+* variables default is highly unbalanced towards the value 'yes', meaning that very few customers have their credit in default
+* the variable 'loan' tells us that most of the bank clients don't have any kind of personal loan
+* the variable 'previous' is characterized by a very low mean value, meaning that the majority of the clients have been contacted only a few times before this specific campaign
+* a value of '-1' in the 'pdays' variable represents clients who have never been contacted before for marketing campaign
+* most of the values of the variable 'poutcome' are 'unknown' meaning that the bank doesn't have any data regarding the outcome of previous campaigns for that client. It could be interesting to understand whether the 'unknown' values are associated only to '-1' values of the 'pdays' variable: if it is the case it means that the bank has no information only about customers who have never been contacted before for a campaign.
+* for what regard the target variable 'y', we can see how most of the observations belong to the 'no' class, with only 521 observations belonging to the class 'yes'. This is an important characteristic of out dataset, that we should strongly take into consideration when developing our classification models, in order to avoid giving to much importance to the 'no' class. More observation about this unbalance problem will be discussed in the following sections.
+
+### Check for missing values
+
+Let's check for NA values for each column:
+
+```{r}
+colSums((is.na((data))))
+```
+
+There are no missing values!
+
+
+### Check variables distribution
+
+Before dealing with outliers, we would like to better inspect the data at our disposal by directly visualizing the distribution of each variable. This will allow us to understand the characteristics of the variables and to decide the strategy to adopt for dealing with outliers.
+
+At first, let's visualize the distribution of each qualitative variable, by using bar plots.
+
+'job' variable:
+
+```{r message=FALSE,warning=FALSE}
+
+p <- ggplot(data, aes(x=job, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "job variable",
+    x = "job",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+
+  theme_grey()
+
+p + coord_flip()
+```
+
+'marital' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=marital, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "marital variable",
+    x = "marital",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+ 
+  theme_grey()
+
+p + coord_flip()
+```
+
+
+'education' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=job, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "education variable",
+    x = "education",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+
+  theme_grey()
+
+p + coord_flip()
+```
+'default' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=default, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "default variable",
+    x = "default",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+ 
+  theme_grey()
+
+p + coord_flip()
+```
+
+'housing' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=housing, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "housing variable",
+    x = "housing",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+ 
+  theme_grey()
+
+p + coord_flip()
+```
+
+Observations:
+* it can be seen that people with no housing loan are more prone to subscribe for a term deposit with respect to people with a housing loan
+
+
+'loan' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=loan, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "loan variable",
+    x = "loan",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+
+  theme_grey()
+
+p + coord_flip()
+```
+
+'contact' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=contact, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "contact variable",
+    x = "contact",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+ 
+  theme_grey()
+
+p + coord_flip()
+```
+
+'month' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=month, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "month variable",
+    x = "month",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+ 
+  theme_grey()
+
+p + coord_flip()
+```
+
+Observations:
+* most of the last contacts have happened in the month of may
+* people contacted in October have an higher possibility of signing for a term deposit 
+
+
+'poutcome' variable:
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=poutcome, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "poutcome variable",
+    x = "poutcome",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+ 
+  theme_grey()
+
+p + coord_flip()
+```
+
+Observations:
+* as expected, people who decided to sign for a term deposit in a previous campaign are very prone to re-sign for the current campaign
+* most of the values are 'unknown': 
+
+There is some ambiguity on the meaning of 'other' and 'unknown': we may decide to convert into 'unknown' the value of the observations with 'poutcome' set to 'other': 
+
+```{r}
+data$poutcome[data$poutcome=="other"] <- "unknown"
+```
+
+
+
+```{r message=FALSE,warning=FALSE}
+p <- ggplot(data, aes(x=poutcome, fill=y))+
+  geom_bar(stat="count", width=0.9 )+
+  labs(
+    title = "poutcome variable",
+    x = "poutcome",
+    y = "count"
+  )+
+  scale_fill_brewer(palette="Paired")+ 
+  theme_grey()
+
+p + coord_flip()
+```
+
+
+
+
+
+
+
+
+
+
+We can now visualize more in detail the distribution and characteristics of the quantitative variables of our dataset.
+Let's start by analyzing the distributions:
+
+```{r}
+g1 <- ggplot(data, aes(x=age)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+g2 <- ggplot(data, aes(x=balance)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+g3 <- ggplot(data, aes(x=day)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+g4 <- ggplot(data, aes(x=duration)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+g5 <- ggplot(data, aes(x=campaign)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+g6 <- ggplot(data, aes(x=pdays)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+g7 <- ggplot(data, aes(x=previous)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+
+grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7, nrow=1);
+```
+
+g6 <- ggplot(data, aes(x = x.6, fill = g)) +
+  geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="none")
+
+We can visualize also densities depending on the target variable value:
+
+```{r}
+g1 <- ggplot(data, aes(x=age, fill=y)) +
+    geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="right")
+g2 <- ggplot(data, aes(x=balance, fill=y)) +
+    geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="none")
+g3 <- ggplot(data, aes(x=day, fill=y)) +
+    geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="none")
+g4 <- ggplot(data, aes(x=duration, fill=y)) +
+    geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="none")
+g5 <- ggplot(data, aes(x=campaign, fill=y)) +
+    geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="none")
+g6 <- ggplot(data, aes(x=pdays, fill=y)) +
+   geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="none")
+g7 <- ggplot(data, aes(x=previous, fill=y)) +
+    geom_density(alpha = 0.7) + theme_bw() +
+    theme(legend.position="none")
+
+grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7, nrow=1);
+```
+
+Observations:
+* 'duration' variable has a pretty accentuated role in discrimating between the 2 classes of the target variable
+* variable 'day' has a pretty uniform distribution with a peak aroun the middle of the month (both for 'yes' and 'no' classes)
+* 'campaign' distribution is carachterzied for some small peaks for high values of the variable in corresponding to the class 'no', meaning that the more the client is called, the less it's probable that he will be likely to sign for the term deposit
+
+
+
+We can now get a rough estimate of the distribution of the values for each continuous attribute broken down by each class:
+
+```{r}
+library(gridExtra)
+g1 <- ggplot(data,aes(x=y, y=age, fill=y)) + 
+    geom_boxplot() +
+    theme(legend.position="right")
+g2 <- ggplot(data,aes(x=y, y=balance, fill=y)) + 
+    geom_boxplot() +
+    theme(legend.position="none")
+g3 <- ggplot(data,aes(x=y, y=day, fill=y)) + 
+    geom_boxplot() +
+    theme(legend.position="none")
+g4 <- ggplot(data,aes(x=y, y=duration, fill=y)) + 
+    geom_boxplot() +
+    theme(legend.position="none")
+g5 <- ggplot(data,aes(x=y, y=campaign, fill=y)) + 
+    geom_boxplot() +
+    theme(legend.position="none")
+g6 <- ggplot(data,aes(x=y, y=pdays, fill=y)) + 
+    geom_boxplot() +
+    theme(legend.position="none")
+g7 <- ggplot(data,aes(x=y, y=previous, fill=y)) + 
+    geom_boxplot() +
+    theme(legend.position="none")
+grid.arrange(g1,g2,nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7,nrow=1);
+
+```
+Observations:
+* for the 'balance' variable we can say that we have a very sparse solution: most of the clients have a very low bank account balance, while we have 2 observations with negative value and other 2 observations with a very high balance value.
+* for what regards the 'duration' variable we have 3 samples with very high values of the variable
+* also in 'campaign' we have some observations with too high value
+
+We think it is interesting to see the results for the clients with the highest values of 'balance':
+
+```{r}
+arr = c(order(data$balance, decreasing=TRUE)[1:10])
+data[arr,]
+```
+We can see that no one of these clients decided to sign for the term deposit.
+
+We can use the *boxplot* function for selecting the outliers:
+
+```{r}
+#grab the outliers
+outliers = boxplot(data$balance, plot=FALSE)$out
+
+#Extract the outliers from the original data frame
+data[data$balance %in% outliers,]
+```
+
+The boxplot function selects 506 observations as outliers!
+We' ll remove only the first 2 observations with the highest balance:
+
+```{r}
+arr = c(order(data$balance, decreasing=TRUE)[1:2])
+data = data[-arr, ]
+```
+
+Let's see how the distribution for that variables changes:
+
+```{r}
+ggplot(data,aes(x=y, y=balance, fill=y)) + 
+    geom_boxplot()
+```
+
+```{r}
+ ggplot(data, aes(x=balance)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+```
+
+
+
+We think also that the variable 'campaign' may be pretty indicator for predicting the our target variable, since it represents the number of times a client has been contacted during the actual marketing campaign:
+
+
+```{r}
+arr = c(order(data$campaign, decreasing=TRUE)[1:10])
+data[arr,]
+```
+`
+
+What we can understand from the above is that  calling many times a client has not a positive effect on their willingness to sign for the term deposit.
+
+
+We' ll remove only the first 2 observations with the highest campaign:
+
+```{r}
+arr = c(order(data$campaign, decreasing=TRUE)[1:2])
+data = data[-arr, ]
+```
+
+Let's see how the distribution for that variables changes:
+
+```{r}
+ggplot(data,aes(x=y, y=campaign, fill=y)) + 
+    geom_boxplot()
+```
+
+```{r}
+ ggplot(data, aes(x=campaign)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+```
+
+The same reasoning can be applied for the 'duration' variable:
+```{r}
+arr = c(order(data$duration, decreasing=TRUE)[1:20])
+data[arr,]
+```
+
+We think this variable is crucial for discriminating between the 2 classes: indeed an higher call duration indicates an higher probability for the clien to apply for the term deposit.
+We'll remove the first 3 observations with highest value of 'duration':
+
+```{r}
+arr = c(order(data$duration, decreasing=TRUE)[1:3])
+data = data[-arr, ]
+```
+
+
+Let's see how the distribution for that variables changes:
+
+```{r}
+ggplot(data,aes(x=y, y=duration, fill=y)) + 
+    geom_boxplot()
+```
+
+```{r}
+ ggplot(data, aes(x=duration)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+```
+
+
+
+In could be interesting to visualize the correlation among these continuous variables:
+
+```{r}
+cols = c("age", "balance", "day", "duration", "campaign", "pdays", "previous")
+library(GGally)
+ggpairs(data, columns=cols,
+        ggplot2::aes(colour=y),
+        title="Correlation matrix")
+```
+
+We have very low correlation values, except for the pair of variables 'pdays' and 'previous'.
+
+Let's better visualize the scatter plot of the 2 variables 'campaign' and 'duration', encoding the target class in the plot:
+
+```{r}
+ggplot(data, aes(x=duration, y=campaign, shape=y, color=y, size=y)) +
+  geom_point()
+```
+
+
+It may be useful to better visualize the scatter plot of the 2 variables 'age' and 'contact', becasue it is more probable that older people are more used to be contaced by telephone:
+
+```{r}
+ggplot(data, aes(x=contact, y=age, shape=y, color=y, size=y)) +
+  geom_point()
+```
+
+### Reduced representations
+
+A further step to gain more insights about the dataset could be to perform dimensional reductions by applying factor analysis methods.
+
+Since we don't have specific groups of variables, we'll perform first a PCA by using the continuous features and by adding the categorical variables as supplementary information:
+* our purpose is to find some useful relationships between variables and individuals, with respect to the class
+* we will exploit these insights for performing the classification
+
+We'll use *FactoMineR* for performing the PCA:
+
+```{r}
+qual = c(3, 4, 5, 6, 8, 9, 10, 12, 17, 18)
+res.pca = PCA(data, scale.unit=TRUE, ncp=5, quali.sup=qual, graph=F)
+```
+
+```{r}
+fviz_eig(res.pca)
+```
+
+```{r}
+?fviz_pca_ind
+```
+
+
+
+
+```{r}
+fviz_pca_ind(res.pca,
+             col.ind = "cos2", # Color by the quality of representation
+             select.ind = list(contrib =50),
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+
+We are more interested in visualizing the variables plot:
+
+```{r}
+fviz_pca_var(res.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+The above PCA plot shows an high correlation for the variables 'previous' and 'pdays' as well as for the variables 'campaign' and 'day'. Variable 'duration' is negatively correlated with 'campaign' and 'day'
+
+
+## Preparing the dataset
+### Feature selection
+
+We think that the variables 'contact' and 'day' are not very useful for the classification taks:
+* for what regards the 'day' variable we have seen in the previous correlation matrix how it' density is pretty uniform along the days of the month, therefore we'll not consider that variable for performing the classification algorithms
+
+* the variable 'contact' indicates the type of mean used to contact the customers: the above plots show that it is not an interesting feature for the classification task.
+
+### Splitting
+### Scaling
+
+```{r}
+
+```
+
