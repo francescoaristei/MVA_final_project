@@ -602,8 +602,10 @@ Since we don't have specific groups of variables, we'll perform first a PCA by u
 We'll use *FactoMineR* for performing the PCA:
 
 ```{r}
-qual = c(3, 4, 5, 6, 8, 9, 10, 12, 17, 18)
-res.pca = PCA(data, scale.unit=TRUE, ncp=5, quali.sup=qual, graph=F)
+qual = c(2, 3, 4, 5, 7, 8, 9, 11, 16, 17)
+quant = c(1, 6, 10, 12, 13, 14)
+data_ = data[2:18]
+res.pca = PCA(data_, scale.unit=TRUE, ncp=5, quali.sup=qual, graph=F)
 ```
 
 ```{r}
@@ -616,6 +618,7 @@ fviz_eig(res.pca)
 
 
 
+Individuals plot:
 
 ```{r}
 fviz_pca_ind(res.pca,
@@ -635,7 +638,46 @@ fviz_pca_var(res.pca,
              repel = TRUE     # Avoid text overlapping
              )
 ```
-The above PCA plot shows an high correlation for the variables 'previous' and 'pdays' as well as for the variables 'campaign' and 'day'. Variable 'duration' is negatively correlated with 'campaign' and 'day'
+The above PCA plot shows an high correlation for the variables 'previous' and 'pdays' as well as for the variables 'campaign' and 'day'. Variable 'duration' is negatively correlated with 'campaign' and 'day'. While variables balance and age are not well represented.
+We may perform the plot on the 3rd and 4th PCs:
+
+```{r}
+fviz_pca_var(res.pca,
+             axes = c(3,4),
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+We can see that on the 2nd factorial plane the variables 'balance' and 'age' are very correlated with each other, and they are very correlated with the 3rd dimension. 
+The correlation between 'balance' and 'age' may be easily interpretable with the fact that younger people are unlikely to have high balances in their bank account.
+
+Biplot:
+
+```{r}
+fviz_pca_biplot(res.pca, repel = TRUE,
+                axes = c(1,2),
+                col.var = "black", # Variables color
+                col.ind = data$y,
+                addEllipses = TRUE
+                )
+```
+
+Since PCA tries to maximize the variance inside the dataset, it is not so useful for a classification task.
+
+Our next step is therefore to try to apply an LDA, just for visualizing better the data:
+
+```{r}
+library(MASS)
+quant = c(1, 6, 10, 12, 13, 14,17)
+data_q = data_[, quant]
+(model <- lda(y~., data = data_q))
+```
+
+
+
+
+
 
 
 ## Preparing the dataset
