@@ -1,0 +1,69 @@
+---
+title: "Neural Nets"
+author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+load("data.RData")
+set.seed(67600)
+```
+
+```{r setup, include=FALSE}
+#install.packages("neuralnet")
+library(neuralnet)
+library(caret)
+```
+
+```{r}
+names(trainingData)[names(trainingData) == 'pdays_Never contacted'] <- 'pdays_never'
+names(trainingData)[names(trainingData) == 'pdays_Under 9months'] <- 'pdays_u9m'
+names(trainingData)[names(trainingData) == 'pdays_Under 6months'] <- 'pdays_u6m'
+names(trainingData)[names(trainingData) == 'pdays_Under 3months'] <- 'pdays_u3m'
+names(trainingData)[names(trainingData) == 'pdays_Under 1yr'] <- 'pdays_u12m'
+names(trainingData)[names(trainingData) == 'pdays_Under 1.5yrs'] <- 'pdays_u18m'
+names(trainingData)[names(trainingData) == 'pdays_Over 1.5yrs'] <- 'pdays_o18m'
+names(trainingData)[names(trainingData) == 'job_admin.'] <- 'job_admin'
+names(trainingData)[names(trainingData) == 'job_blue-collar'] <- 'job_blue_collar'
+names(trainingData)[names(trainingData) == 'job_self-employed'] <- 'job_self_employed'
+```
+
+```{r}
+names(testData)[names(testData) == 'pdays_Never contacted'] <- 'pdays_never'
+names(testData)[names(testData) == 'pdays_Under 9months'] <- 'pdays_u9m'
+names(testData)[names(testData) == 'pdays_Under 6months'] <- 'pdays_u6m'
+names(testData)[names(testData) == 'pdays_Under 3months'] <- 'pdays_u3m'
+names(testData)[names(testData) == 'pdays_Under 1yr'] <- 'pdays_u12m'
+names(testData)[names(testData) == 'pdays_Under 1.5yrs'] <- 'pdays_u18m'
+names(testData)[names(testData) == 'pdays_Over 1.5yrs'] <- 'pdays_o18m'
+names(testData)[names(testData) == 'job_admin.'] <- 'job_admin'
+names(testData)[names(testData) == 'job_blue-collar'] <- 'job_blue_collar'
+names(testData)[names(testData) == 'job_self-employed'] <- 'job_self_employed'
+```
+
+
+                
+```{r}
+nn=neuralnet(y ~ age + balance + duration + campaign + previous + poutcome_failure + poutcome_success + poutcome_unknown + job_admin + job_blue_collar + job_entrepreneur + job_housemaid + job_management + job_retired + job_self_employed + job_services + job_student + job_technician + job_unemployed + job_unknown + marital_divorced + marital_married + marital_single + education_primary + education_secondary + education_tertiary + education_unknown + default_no + default_yes + housing_no + housing_yes + loan_no + loan_yes + month_apr + month_aug + month_dec + month_feb + month_jan + month_jul + month_jun + month_mar + month_may + month_nov + month_oct + month_sep + pdays_never + pdays_u3m + pdays_u6m + pdays_u9m + pdays_u12m + pdays_u18m + pdays_o18m, data=trainingData, hidden=15, act.fct = "logistic", linear.output = FALSE)
+```
+
+```{r}
+plot(nn)
+```
+
+                
+```{r}
+prednn=compute(nn, testData[-c(1, 47)])
+prob <- prednn$net.result[,1]
+pred <- as.factor(ifelse(prob>0.5, 1, 0))
+head(pred)
+```
+
+```{r}
+tab = confusionMatrix(pred, testData$y)
+tab$table
+tab$byClass['F1']
+```
+
+

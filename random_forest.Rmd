@@ -1,0 +1,251 @@
+---
+title: "Random Forest"
+author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+load("data.RData")
+set.seed(67600)
+```
+
+```{r message=FALSE,warning=FALSE}
+library(rpart)
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(yardstick)
+library(randomForest)
+library(caret)
+```
+
+```{r}
+names(trainingData)[names(trainingData) == 'pdays_Never contacted'] <- 'pdays_never'
+names(trainingData)[names(trainingData) == 'pdays_Under 9months'] <- 'pdays_u9m'
+names(trainingData)[names(trainingData) == 'pdays_Under 6months'] <- 'pdays_u6m'
+names(trainingData)[names(trainingData) == 'pdays_Under 3months'] <- 'pdays_u3m'
+names(trainingData)[names(trainingData) == 'pdays_Under 1yr'] <- 'pdays_u12m'
+names(trainingData)[names(trainingData) == 'pdays_Under 1.5yrs'] <- 'pdays_u18m'
+names(trainingData)[names(trainingData) == 'pdays_Over 1.5yrs'] <- 'pdays_o18m'
+names(trainingData)[names(trainingData) == 'job_admin.'] <- 'job_admin'
+names(trainingData)[names(trainingData) == 'job_blue-collar'] <- 'job_blue_collar'
+names(trainingData)[names(trainingData) == 'job_self-employed'] <- 'job_self_employed'
+```
+
+```{r}
+names(testData)[names(testData) == 'pdays_Never contacted'] <- 'pdays_never'
+names(testData)[names(testData) == 'pdays_Under 9months'] <- 'pdays_u9m'
+names(testData)[names(testData) == 'pdays_Under 6months'] <- 'pdays_u6m'
+names(testData)[names(testData) == 'pdays_Under 3months'] <- 'pdays_u3m'
+names(testData)[names(testData) == 'pdays_Under 1yr'] <- 'pdays_u12m'
+names(testData)[names(testData) == 'pdays_Under 1.5yrs'] <- 'pdays_u18m'
+names(testData)[names(testData) == 'pdays_Over 1.5yrs'] <- 'pdays_o18m'
+names(testData)[names(testData) == 'job_admin.'] <- 'job_admin'
+names(testData)[names(testData) == 'job_blue-collar'] <- 'job_blue_collar'
+names(testData)[names(testData) == 'job_self-employed'] <- 'job_self_employed'
+```
+
+
+To get colnames
+```{r, echo=FALSE}
+for(v in colnames(trainingData)[-c(1, 47)]){cat(paste(v,"+ "))}
+```
+
+# With onehot
+## Default run
+```{r}
+rf = randomForest(formula = y ~ age + balance + duration + campaign + previous + poutcome_failure + poutcome_success + poutcome_unknown + job_admin + job_blue_collar + job_entrepreneur + job_housemaid + job_management + job_retired + job_self_employed + job_services + job_student + job_technician + job_unemployed + job_unknown + marital_divorced + marital_married + marital_single + education_primary + education_secondary + education_tertiary + education_unknown + default_no + default_yes + housing_no + housing_yes + loan_no + loan_yes + month_apr + month_aug + month_dec + month_feb + month_jan + month_jul + month_jun + month_mar + month_may + month_nov + month_oct + month_sep + pdays_never + pdays_u3m + pdays_u6m + pdays_u9m + pdays_u12m + pdays_u18m + pdays_o18m, data=trainingData)
+print(rf)
+```
+
+```{r}
+pred = predict(rf, testData, type="class")
+table(pred=pred, true=testData$y)
+```
+
+```{r}
+paste(mean(pred==testData$y), bal_accuracy_vec(pred, truth=testData$y, estimator="binary"))
+```
+
+```{r}
+tab = confusionMatrix(pred, testData$y)
+tab$table
+tab$byClass['F1']
+```
+
+On a default run of the Random Forest algorithm with nt=500 trees and nt=7 variables tried at each split, we had an out-of-bag error of 10.43% but when taking into account our strongly unbalanced data set, we have a balanced accuracy score of 0.62%, which is relatively low.
+
+
+## Optimal number of variables
+As a first step toward the improvement of our Random Forest model, we will try more variable at each step. As a matter of fact, we introduced a lot of variables due to the one-hot encoding that should be more taken into account when running our RF algorithm.
+
+To do so, we will iterate over a range of variable number and plot the OOB error rate.
+```{r}
+oob_per_mtry <- function(mtry){
+  print(mtry)
+  model = randomForest(formula = y ~ age + balance + duration + campaign + previous + poutcome_failure + poutcome_success + poutcome_unknown + job_admin + job_blue_collar + job_entrepreneur + job_housemaid + job_management + job_retired + job_self_employed + job_services + job_student + job_technician + job_unemployed + job_unknown + marital_divorced + marital_married + marital_single + education_primary + education_secondary + education_tertiary + education_unknown + default_no + default_yes + housing_no + housing_yes + loan_no + loan_yes + month_apr + month_aug + month_dec + month_feb + month_jan + month_jul + month_jun + month_mar + month_may + month_nov + month_oct + month_sep + pdays_never + pdays_u3m + pdays_u6m + pdays_u9m + pdays_u12m + pdays_u18m + pdays_o18m, data=trainingData, ntree=500, mtry=mtry)
+  
+  return(model$err.rate[498,1])
+}
+
+mtry_vals = c(1:54)
+oob_vals = lapply(mtry_vals, oob_per_mtry)
+plot(mtry_vals, oob_vals)
+png("oob_per_mtry_with_ohot.png")
+```
+Even though we have sparsed results, there seem to be a global minimum around 23.
+
+We'll then recompute our Random Forest model with this *mtry* paramter:
+```{r}
+model = randomForest(formula = y ~ age + balance + duration + campaign + previous + poutcome_failure + poutcome_success + poutcome_unknown + job_admin + job_blue_collar + job_entrepreneur + job_housemaid + job_management + job_retired + job_self_employed + job_services + job_student + job_technician + job_unemployed + job_unknown + marital_divorced + marital_married + marital_single + education_primary + education_secondary + education_tertiary + education_unknown + default_no + default_yes + housing_no + housing_yes + loan_no + loan_yes + month_apr + month_aug + month_dec + month_feb + month_jan + month_jul + month_jun + month_mar + month_may + month_nov + month_oct + month_sep + pdays_never + pdays_u3m + pdays_u6m + pdays_u9m + pdays_u12m + pdays_u18m + pdays_o18m, data=trainingData, ntree=500, mtry=23)
+print(rf)
+```
+
+
+```{r}
+pred = predict(rf, testData, type="class")
+table(pred=pred, true=testData$y)
+paste(mean(pred==testData$y), bal_accuracy_vec(pred, truth=testData$y, estimator="binary"))
+```
+```{r}
+tab = confusionMatrix(pred, testData$y)
+tab$table
+tab$byClass['F1']
+```
+Because we had very little effect on accuracy using the number of variable optimization, we tried to use the dataset without the one-hot encoding.
+
+# Without one-hot
+## Default run
+
+```{r}
+set.seed(123)
+#Training & Test Datasets
+deposit_yes <- data[which(data$y == "yes"), ]  # all yes's of target class
+deposit_no <- data[which(data$y ==  "no"), ]  # all no's of target class
+
+deposit_yes_training_rows <- sample(1:nrow(deposit_yes), 0.8*nrow(deposit_yes))  #randomly choosing 80% observations of yes class
+deposit_no_training_rows <- sample(1:nrow(deposit_no), 0.8*nrow(deposit_no))  #randomly choosing 80% observations of no class
+training_yes <- deposit_yes[deposit_yes_training_rows, ]  
+training_no <- deposit_no[deposit_no_training_rows, ]
+trainingData_withcat <- rbind(training_yes, training_no)  #combining chosen observations
+
+test_yes <- deposit_yes[-deposit_yes_training_rows, ]
+test_no <- deposit_no[-deposit_no_training_rows, ]
+testData_withcat <- rbind(test_yes, test_no)  #combining chosen observations
+
+summary(trainingData_withcat)
+```
+
+To get colnames
+```{r, echo=FALSE}
+for(v in colnames(trainingData_withcat)){cat(paste(v,"+ "))}
+```
+
+```{r}
+rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat)
+print(rf)
+```
+
+```{r}
+pred = predict(rf, testData_withcat, type="class")
+table(pred=pred, true=testData_withcat$y)
+```
+
+```{r}
+tab = confusionMatrix(pred, testData_withcat$y)
+tab$table
+tab$byClass['F1']
+```
+
+```{r}
+paste(mean(pred==testData_withcat$y), bal_accuracy_vec(pred, truth=testData_withcat$y, estimator="binary"))
+```
+With default parameters (nt=500 and mtry=3), we have a balanced accuracy of 66% which is 7% better that the model performed on the dataset including one hot encoding. Therefore, we will perfom the rest of the Random Forest optimisation with the categorical variables instead of the one-hot encoded variables.
+
+A note for the reader: it would have been easier to run the Random Forest computation before one-hot encoding. But we made the choice to first prepare the data with one-hot, thus we prefered the report to follow our scienfitic reasoning instead of directly following the optimal path.
+
+## Optimal number of variables
+
+```{r}
+oob_per_mtry <- function(mtry){
+  print(mtry)
+  model = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, ntree=500, mtry=mtry)
+  
+  return(model$err.rate[498,1])
+}
+
+mtry_vals = c(1:14)
+oob_vals = lapply(mtry_vals, oob_per_mtry)
+plot(mtry_vals, oob_vals)
+```
+
+```{r}
+rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=6)
+print(rf)
+```
+
+```{r}
+pred = predict(rf, testData_withcat, type="class")
+table(pred=pred, true=testData_withcat$y)
+```
+
+
+```{r}
+paste(mean(pred==testData_withcat$y), bal_accuracy_vec(pred, truth=testData_withcat$y, estimator="binary"))
+```
+
+After applying the algorithm to optimize the number of variables as before, we found a optimal OOB error using 6 variables. We then had a balanced score of 69% which is a 3% improvement thanks to mtry optimization.
+
+## Variable importance
+```{r}
+rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=6, importance=TRUE)
+importance(rf)
+varImpPlot(rf)
+```
+From far, the duration of the call is the most important variable which makes sense: the more time a client stays in the call with the salesperson, the more chances he has to actually take the loan.
+
+## Tree number optimization
+```{r}
+plot(rf, main="Random forest")
+```
+```{r}
+optimal_ntree <- function(ntree){
+  # Averages on 10 runs
+  print(ntree)
+  scores = c()
+  for(i in 1:10){
+      rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, ntree=ntree, mtry=6)
+    scores = c(scores, c(min(rf$err.rate[,1])))
+  }
+  print(scores)
+  
+  return(mean(scores))
+}
+```
+
+```{r}
+ntrees = seq(100, 1000, by=100)
+ntrees_scores = lapply(ntrees, optimal_ntree)
+plot(ntrees, ntrees_scores)
+```
+
+
+
+
+
+```{r}
+rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=6, ntree=1000)
+print(rf)
+```
+
+
+We then use this Random Forest to predict the test data:
+```{r}
+pred = predict(rf, testData_withcat, type="class")
+table(pred=pred, true=testData_withcat$y)
+paste(mean(pred==testData_withcat$y), bal_accuracy_vec(pred, truth=testData_withcat$y, estimator="binary"))
+```
+After optimizing the number of trees, we have a 70% balanced accuracy score, which is better than before.
+
+
