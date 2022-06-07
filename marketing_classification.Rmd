@@ -368,22 +368,25 @@ Let's start by analyzing the distributions:
 
 ```{r}
 g1 <- ggplot(data, aes(x=age)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 g2 <- ggplot(data, aes(x=balance)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 g3 <- ggplot(data, aes(x=day)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 g4 <- ggplot(data, aes(x=duration)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 g5 <- ggplot(data, aes(x=campaign)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+  geom_histogram(alpha=0.6, fill="#69b3a2", color="#e9ecef", alpha=0.8)
 g6 <- ggplot(data, aes(x=pdays)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 g7 <- ggplot(data, aes(x=previous)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 
 grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7, nrow=1);
 ```
+
+
+
 
 
 
@@ -391,25 +394,25 @@ We can visualize also densities depending on the target variable value:
 
 ```{r}
 g1 <- ggplot(data, aes(x=age, fill=y)) +
-    geom_density(alpha = 0.7) + theme_bw() +
+    geom_histogram(alpha = 0.7) + theme_grey() +
     theme(legend.position="right")
 g2 <- ggplot(data, aes(x=balance, fill=y)) +
-    geom_density(alpha = 0.7) + theme_bw() +
+    geom_histogram(alpha = 0.7) + theme_grey() +
     theme(legend.position="none")
 g3 <- ggplot(data, aes(x=day, fill=y)) +
-    geom_density(alpha = 0.7) + theme_bw() +
+    geom_histogram(alpha = 0.7) + theme_grey() +
     theme(legend.position="none")
 g4 <- ggplot(data, aes(x=duration, fill=y)) +
-    geom_density(alpha = 0.7) + theme_bw() +
+    geom_histogram(alpha = 0.7) + theme_grey() +
     theme(legend.position="none")
 g5 <- ggplot(data, aes(x=campaign, fill=y)) +
-    geom_density(alpha = 0.7) + theme_bw() +
+    geom_histogram(alpha = 0.7) + theme_grey() +
     theme(legend.position="none")
 g6 <- ggplot(data, aes(x=pdays, fill=y)) +
-   geom_density(alpha = 0.7) + theme_bw() +
+   geom_histogram(alpha = 0.7) + theme_grey() +
     theme(legend.position="none")
 g7 <- ggplot(data, aes(x=previous, fill=y)) +
-    geom_density(alpha = 0.7) + theme_bw() +
+    geom_histogram(alpha = 0.7) + theme_grey() +
     theme(legend.position="none")
 
 grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7, nrow=1);
@@ -490,7 +493,7 @@ ggplot(data,aes(x=y, y=balance, fill=y)) +
 
 ```{r}
  ggplot(data, aes(x=balance)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 ```
 
 
@@ -523,7 +526,7 @@ ggplot(data,aes(x=y, y=campaign, fill=y)) +
 
 ```{r}
  ggplot(data, aes(x=campaign)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 ```
 
 The same reasoning can be applied for the 'duration' variable:
@@ -550,7 +553,7 @@ ggplot(data,aes(x=y, y=duration, fill=y)) +
 
 ```{r}
  ggplot(data, aes(x=duration)) +
-    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+    geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 ```
 
 
@@ -569,6 +572,10 @@ We have very low correlation values, except for the pair of variables 'pdays' an
 
 
 
+## Insights about the data
+
+With the obtained knowledge of the distribution of the variables, we can perform further analysis of each customer characteristic in order to investigate its influence on the subscription rate, i.e. on the rate of subscriptions to the term deposit.
+
 Let's better visualize the scatter plot of the 2 variables 'campaign' and 'duration', encoding the target class in the plot:
 
 ```{r}
@@ -576,7 +583,7 @@ ggplot(data, aes(x=duration, y=campaign, shape=y, color=y, size=y)) +
   geom_point()
 ```
 
-As shown in the above plot, 'duration' and 'campaign' variables allow to create aproximately 2 clusters of customers:
+As shown in the above plot, 'duration' and 'campaign' variables allow to create approximately 2 clusters of customers:
 * almost all the 'yes' clients are characterized by low value of 'campaign' and they may have also high 'duration'
 * 'no' clients have higher values on campaign and low 'duration' values
 
@@ -584,12 +591,15 @@ An important observation is that an high value of the 'campaign' variable makes 
 
 
 
-It may be useful to better visualize the scatter plot of the 2 variables 'age' and 'contact', becasue it is more probable that older people are more used to be contaced by telephone:
+It may be useful to better visualize the scatter plot of the 2 variables 'age' and 'contact', because it is more probable that older people are more used to be contacted by telephone:
 
 ```{r}
 ggplot(data, aes(x=contact, y=age, shape=y, color=y, size=y)) +
   geom_point()
 ```
+
+It seems the there is no relationship between 'contact' and 'age'.
+
 
 It could be interesting to better visualize the scatter plot of the 2 variables 'age' and 'balance', encoding the target class in the plot:
 
@@ -613,11 +623,6 @@ corrplot(res, type = "upper", order = "hclust",
          tl.col = "black", tl.srt = 45)
 ```
 The results confirms what we observed before: only 'pdays' and 'previous' are positively correlated to each other.
-
-
-## Insights about the data
-
-With a sound knowledge of the distribution of key variables, further analysis of each customer characteristic can be carried out to investigate its influence on the subscription rate, i.e. on the rate of subscriptions to the term deposit.
 
 
 
@@ -650,6 +655,32 @@ data2 %>%
     scale_y_continuous(labels = scales::percent)
 ```
 
+The above plot suggests that:
+* clients with a age above 60 have the highest subscription rate: since the percentage of 'yes' is very close to that of 'no', meaning that a lot of the people contacted by the bank signed for the term deposit
+
+* it is not surprising to see such a pattern because the main investment objective of older people is saving for retirement while the middle-aged group tend to be more aggressive with a main objective of generating high investment income. Term deposits, as the least risky investment tool, are more preferable to the eldest.
+* The youngest may not have enough money or professional knowledge to engage in sophisticated investments, such as stocks and mutual funds. Term deposits provide liquidity and generate interest incomes that are higher than the regular saving account, so term deposits are ideal investments for students.
+
+We could better visualize this characteristics by taking into account only customers that signed a term deposit:
+
+
+
+```{r}
+data_yes <- data2[which(data2$y == 'yes'), ]  # all yes's of target class
+
+data_yes %>% 
+    count(age = factor(age), dep = factor(y)) %>% 
+    mutate(pct = prop.table(n)) %>% 
+    ggplot(aes(x = age, y = pct, label = scales::percent(pct))) + 
+    geom_col(position = 'dodge', fill="#69b3a2", color="#e9ecef", alpha=0.8) + 
+    geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 3) + 
+    scale_y_continuous(labels = scales::percent)
+```
+
+The plot clearly shows the the age range of people most contacted by the bank is the one between 30 and 60, this explains the high percentage of subscriptions. But this may be misleading, as we saw above that older people are much more likely to sign.
+
 
 # SUBSCRIPTION RATE PER JOB
 
@@ -667,10 +698,71 @@ data %>%
     coord_flip()
 ```
 
+The plot above allows to draw other interesting conclusions, also related to what we saw before:
+* the percentage of 'yes' is very high for 'retired' and 'student' categories, as we already found above regarding the age ranges
+
+
+subscription rate by balance level
+
+In order to better understand the effect of the balance on the probability to sign for a term contract, we can visualize it by means of a histogram
+
+
+```{r}
+# cut balances into 
+data2 <- data
+data2$balance = cut(data2$balance, breaks = c(-5000, -1,  2000, 5000, 10000, 15000, 30000),
+                 labels = c('<0', '0-2000', '2000-5000','50000-10000', '10000-15000', '>150000'
+                            ))
+```
+
+
+data2$age = cut(data2$age, breaks = c(0, 29, 39, 49, 59, 69, 100),
+                 labels = c('<30','30-39','40-49',
+                            '50-59','60-69','70+'
+                            ))
+
+
+```{r}
+data2 %>% 
+    count(balance = factor(balance), dep = factor(y)) %>% 
+    mutate(pct = prop.table(n)) %>% 
+    ggplot(aes(x = balance, y = pct, fill = dep, label = scales::percent(pct))) + 
+    geom_col(position = 'dodge') + 
+    geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 3) + 
+    scale_y_continuous(labels = scales::percent)
+```
+Observations:
+* clients with a balance in the range 2000-5000 are the ones with a highest subscription rate
 
 
 
+In order to confirm our hypoteses, we can combine together the information from the ages with that of the balances
 
+```{r}
+data2 <- data
+data2$balance = cut(data2$balance, breaks = c(-5000, -1,  5000, 15000, 30000),
+                 labels = c('<0', '0-5000', '5000-15000','>15000'
+                            ))
+data2$age = cut(data2$age, breaks = c(0, 29, 39, 49, 59, 69, 100),
+                 labels = c('<30','30-39','40-49',
+                            '50-59','60-69','70+'
+                            ))
+data_yes <- data2[which(data2$y == 'yes'), ]  # all yes's of target class
+data_yes %>% 
+    count(age = factor(age), bal = factor(balance)) %>% 
+    mutate(pct = prop.table(n)) %>% 
+    ggplot(aes(x = age, y = pct, fill = bal, label = scales::percent(pct))) + 
+    geom_col(position = 'dodge') + 
+    geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 3) + 
+    scale_y_continuous(labels = scales::percent)+
+    coord_flip()
+```
+
+We can see that the highest number of 'yes' is in the age range '30-39' for clients with a balance between '0-5000', this means young clients with a sufficient balance are the most prone to sign for the term deposit.
 
 
 ## Preparing the dataset
@@ -679,7 +771,7 @@ We'll now prepare the dataset for the classification task. We remind that our go
 
 ### Feature engineering
 
-We think that the variables 'contact' and 'day' are not very useful for the classification taks:
+We think that the variables 'contact' and 'day' are not very useful for the classification task:
 
 * for what regards the 'day' variable we have seen in the previous plots how it' density is pretty uniform along the days of the month, therefore we'll not consider that variable for performing the classification algorithms
 
@@ -781,7 +873,7 @@ The algorithm we are going to use (from the package [DDoutlier](https://rdrr.io/
 Therefore, the function returns a vector of LOF scores for each observation: the greater the LOF, the greater the outlierness of the data point.
 
 
-```{r message=FALSE,warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 #install.packages('DDoutlier')
 library("DDoutlier")
 lof <- LOF(data_dummy, k = 5) # outlier score with a neighborhood of 5 points
@@ -1026,7 +1118,6 @@ data_dummy_scaled$age = normalize(data_dummy_scaled$age)
 data_dummy_scaled$balance = normalize(data_dummy_scaled$balance)
 data_dummy_scaled$campaign = normalize(data_dummy_scaled$campaign)
 data_dummy_scaled$duration = normalize(data_dummy_scaled$duration)
-data_dummy_scaled$pdays = normalize(data_dummy_scaled$pdays)
 data_dummy_scaled$previous = normalize(data_dummy_scaled$previous)
 ```
 
