@@ -76,6 +76,7 @@ data = read.csv("bank.csv", sep = ";", header = TRUE)
 ```{r}
 head(data)
 ```
+
 Since the data matrix contains one observation for each customer, we identify each individual with a progressive integer ID:
 
 ```{r}
@@ -132,7 +133,7 @@ We can check again the structure:
 str(data)
 ```
 
-As we can see, the categorical variables have been all correclty converted into the 'factor' type.
+As we can see, the categorical variables have been all correctly converted into the 'factor' type.
 
 We can print a portion (a sample of 20) of the table using kable and the pipe operator, to better understand the structure of the variables:
 
@@ -177,7 +178,7 @@ There are no missing values!
 
 ### Check variables distribution
 
-Before dealing with outliers, we would like to better inspect the data at our disposal by directly visualizing the distribution of each variable. This will allow us to understand the characteristics of the variables and to decide the strategy to adopt for dealing with outliers.
+Before dealing with outliers, we would like to better inspect the data at our disposal by directly visualizing the distribution of each variable. This will allow us to understand the characteristics of the variables and to decide the strategy to adopt for dealing with eventual outliers.
 
 At first, let's visualize the distribution of each qualitative variable, by using bar plots.
 
@@ -339,6 +340,7 @@ Observations:
 * as expected, people who decided to sign for a term deposit in a previous campaign are very prone to re-sign for the current campaign
 * most of the values are 'unknown': 
 
+
 There is some ambiguity on the meaning of 'other' and 'unknown': we may decide to convert into 'unknown' the value of the observations with 'poutcome' set to 'other': 
 
 ```{r}
@@ -360,15 +362,6 @@ p <- ggplot(data, aes(x=poutcome, fill=y))+
 
 p + coord_flip()
 ```
-```{r}
-str(data)
-```
-
-
-
-
-
-
 
 We can now visualize more in detail the distribution and characteristics of the quantitative variables of our dataset.
 Let's start by analyzing the distributions:
@@ -574,6 +567,8 @@ ggpairs(data, columns=cols,
 
 We have very low correlation values, except for the pair of variables 'pdays' and 'previous'.
 
+
+
 Let's better visualize the scatter plot of the 2 variables 'campaign' and 'duration', encoding the target class in the plot:
 
 ```{r}
@@ -620,6 +615,61 @@ corrplot(res, type = "upper", order = "hclust",
 The results confirms what we observed before: only 'pdays' and 'previous' are positively correlated to each other.
 
 
+## Insights about the data
+
+With a sound knowledge of the distribution of key variables, further analysis of each customer characteristic can be carried out to investigate its influence on the subscription rate, i.e. on the rate of subscriptions to the term deposit.
+
+SUBSCRIPTION RATE PER AGE
+
+
+
+```{r}
+# convert age variable into bins
+#Coverting pdays variable into bins
+data2 = data
+
+data2$age = cut(data2$age, breaks = c(0, 29, 39, 49, 59, 69, 100),
+                 labels = c('<30','30-39','40-49',
+                            '50-59','60-69','70+'
+                            ))
+```
+
+
+```{r}
+data2 %>% 
+    count(age = factor(age), dep = factor(y)) %>% 
+    mutate(pct = prop.table(n)) %>% 
+    ggplot(aes(x = age, y = pct, fill = dep, label = scales::percent(pct))) + 
+    geom_col(position = 'dodge') + 
+    geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 3) + 
+    scale_y_continuous(labels = scales::percent)
+```
+
+
+# SUBSCRIPTION RATE PER JOB
+
+```{r}
+data %>% 
+    count(job = factor(job), dep = factor(y)) %>% 
+    mutate(pct = prop.table(n)) %>% 
+    ggplot(aes(x = job, y = pct, fill = dep, label = scales::percent(pct))) + 
+    geom_col(position = 'dodge') + 
+    geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 3) + 
+    scale_y_continuous(labels = scales::percent)+
+    theme_grey()+
+    coord_flip()
+```
+
+
+
+
+
+
+
 ## Preparing the dataset
 
 We'll now prepare the dataset for the classification task. We remind that our goal is to use the customers characteristics to predict whether they will sign for a term deposit. This will allow the bank to identify the customers to contact in future marketing campaigns.
@@ -662,6 +712,7 @@ data_dummy <- dummy_cols(data, select_columns = 'poutcome', remove_selected_colu
 ```{r}
 head(data_dummy)
 ```
+
 ```{r}
 summary(data_dummy)
 ```
@@ -707,7 +758,7 @@ data_dummy %>%
 
 ### Multivariate outliers
 
-We can now perform some multivariate outlier detection algorithms, for detecting and removing outliers in the multivariate space.
+Now that we have the explored enough the data and converted it into the final format we'll use in the following, we can perform some multivariate outlier detection algorithms, for detecting and removing outliers in the multivariate space.
 
 One way to check for multivariate outliers  (non-parametric approach) is to use the LOF ("local outlier factor") algorithm, which identifies density-based local outliers.
 
@@ -895,12 +946,22 @@ An important remark is that the considered dataset is highly unbalanced: most of
 
 In this way we'll have the same distribution of observations inside the two classes in both the training and test set.
 
+
+
+```{r}
+data_dummy <- data_dummy %>% relocate(y, .after = month_sep )
+```
+
+```{r}
+str(data_dummy)
+```
+
+
 ```{r}
 set.seed(123)
-
 #Training & Test Datasets
-deposit_yes <- data_dummy[which(data_dummy$y == 1), ]  # all yes's of outcome class
-deposit_no <- data_dummy[which(data_dummy$y ==  0), ]  # all no's of outcome class
+deposit_yes <- data_dummy[which(data_dummy$y == 1), ]  # all yes's of target class
+deposit_no <- data_dummy[which(data_dummy$y ==  0), ]  # all no's of target class
 
 deposit_yes_training_rows <- sample(1:nrow(deposit_yes), 0.8*nrow(deposit_yes))  #randomly choosing 80% observations of yes class
 deposit_no_training_rows <- sample(1:nrow(deposit_no), 0.8*nrow(deposit_no))  #randomly choosing 80% observations of no class
@@ -913,6 +974,10 @@ table(trainingData$y)
 ```
 
 
+
+In the training data we have 3185 samples in the 'no' class and 412 samples in the 'yes' class.
+
+
 ```{r}
 # Create Test Data
 test_yes <- deposit_yes[-deposit_yes_training_rows, ]
@@ -922,18 +987,77 @@ glimpse(testData)
 table(testData$y)
 ```
 
+In the test data we have 797 samples in the 'no' class and 104 samples in the 'yes' class.
 
-```{r}
-#Training & Test Datasets
-deposit_yes <- data_dummy[which(data_dummy$y == 1), ]  # all yes's of outcome class
 
-```
+
 
 ### Scaling
 
-```{r}
+We' ll perform the scaling according to the needs of each different classifier we'll use, since not all algorithms need scaled data.
 
+For the moment we build also a scaled version of the dataset, so that we can re-use it later on:
+```{r}
+str(data_dummy)
 ```
 
-### Convert categorical variables
+```{r}
+#Normalizing continuous variables
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+data_dummy_scaled = data_dummy
+data_dummy_scaled$age = normalize(data_dummy_scaled$age)
+data_dummy_scaled$balance = normalize(data_dummy_scaled$balance)
+data_dummy_scaled$campaign = normalize(data_dummy_scaled$campaign)
+data_dummy_scaled$duration = normalize(data_dummy_scaled$duration)
+data_dummy_scaled$pdays = normalize(data_dummy_scaled$pdays)
+data_dummy_scaled$previous = normalize(data_dummy_scaled$previous)
+```
+
+
+
+
+
+
+
+```{r}
+data_dummy_scaled[,"y"] = as.factor(data_dummy_scaled[,"y"])
+str(data_dummy_scaled)
+```
+
+```{r}
+summary(data_dummy_scaled)
+```
+
+
+We can now re-preform the splitting on the scaled data:
+
+```{r}
+deposit_yes <- data_dummy_scaled[which(data_dummy_scaled$y == 1), ]  # all yes's of target class
+deposit_no <- data_dummy_scaled[which(data_dummy_scaled$y ==  0), ]  # all no's of target class
+
+training_yes <- deposit_yes[deposit_yes_training_rows, ]  
+training_no <- deposit_no[deposit_no_training_rows, ]
+trainingData_scaled <- rbind(training_yes, training_no)  #combining chosen observations
+glimpse(trainingData_scaled)
+table(trainingData_scaled$y)
+```
+
+```{r}
+# Create Test Data
+test_yes <- deposit_yes[-deposit_yes_training_rows, ]
+test_no <- deposit_no[-deposit_no_training_rows, ]
+testData_scaled <- rbind(test_yes, test_no)  #combining chosen observations
+glimpse(testData_scaled)
+table(testData_scaled$y)
+```
+
+We can save the scaled and the not scaled training and test dataset:
+
+```{r}
+save(trainingData, testData, trainingData_scaled, testData_scaled, file = "data.RData")
+```
+
+
 
