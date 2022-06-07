@@ -893,22 +893,27 @@ An important remark is that the considered dataset is highly unbalanced: most of
 * we'll select 80% among all the clients belonging to the positive class for training and 20% for testing
 * we'll select 80% among all the clients belonging to the negative class for training and 20% for testing
 
-In this way we'll have the same distribution of observations 
+In this way we'll have the same distribution of observations inside the two classes in both the training and test set.
 
 ```{r}
+set.seed(123)
+
 #Training & Test Datasets
 deposit_yes <- data_dummy[which(data_dummy$y == 1), ]  # all yes's of outcome class
-deposit_no <- bank[which(bank$y == 'no'), ]  # all no's of outcome class
-set.seed(100)
-deposit_yes_training_rows <- sample(1:nrow(deposit_yes), 0.7*nrow(deposit_yes))  #randomly choosing 70% observations of yes class
-deposit_no_training_rows <- sample(1:nrow(deposit_no), 0.7*nrow(deposit_no))  #randomly choosing 70% observations of yes class
+deposit_no <- data_dummy[which(data_dummy$y ==  0), ]  # all no's of outcome class
+
+deposit_yes_training_rows <- sample(1:nrow(deposit_yes), 0.8*nrow(deposit_yes))  #randomly choosing 80% observations of yes class
+deposit_no_training_rows <- sample(1:nrow(deposit_no), 0.8*nrow(deposit_no))  #randomly choosing 80% observations of no class
 training_yes <- deposit_yes[deposit_yes_training_rows, ]  
 training_no <- deposit_no[deposit_no_training_rows, ]
 trainingData <- rbind(training_yes, training_no)  #combining chosen observations
 glimpse(trainingData)
 table(trainingData$y)
 
+```
 
+
+```{r}
 # Create Test Data
 test_yes <- deposit_yes[-deposit_yes_training_rows, ]
 test_no <- deposit_no[-deposit_no_training_rows, ]
@@ -916,6 +921,7 @@ testData <- rbind(test_yes, test_no)  #combining chosen observations
 glimpse(testData)
 table(testData$y)
 ```
+
 
 ```{r}
 #Training & Test Datasets
