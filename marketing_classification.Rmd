@@ -619,10 +619,9 @@ The results confirms what we observed before: only 'pdays' and 'previous' are po
 
 With a sound knowledge of the distribution of key variables, further analysis of each customer characteristic can be carried out to investigate its influence on the subscription rate, i.e. on the rate of subscriptions to the term deposit.
 
+
+
 SUBSCRIPTION RATE PER AGE
-
-
-
 ```{r}
 # convert age variable into bins
 #Coverting pdays variable into bins
@@ -632,6 +631,10 @@ data2$age = cut(data2$age, breaks = c(0, 29, 39, 49, 59, 69, 100),
                  labels = c('<30','30-39','40-49',
                             '50-59','60-69','70+'
                             ))
+```
+
+```{r}
+data$age[16]
 ```
 
 
@@ -674,7 +677,7 @@ data %>%
 
 We'll now prepare the dataset for the classification task. We remind that our goal is to use the customers characteristics to predict whether they will sign for a term deposit. This will allow the bank to identify the customers to contact in future marketing campaigns.
 
-### Feature selection
+### Feature engineering
 
 We think that the variables 'contact' and 'day' are not very useful for the classification taks:
 
@@ -691,6 +694,17 @@ data = data[,!(names(data) %in% drop)]
 ```{r}
 str(data)
 ```
+
+Since the variable 'pdays' is very spread in the past and has a lot of '-1' values (which makes the classification task harder compromising the training), we decided to group values into 7 bins:
+```{r}
+data$pdays = cut(data$pdays, breaks = c(-2,-1,90,181,272,363,545,max(data$pdays)+1),
+                 labels = c('Never contacted','Under 3months','Under 6months',
+                            'Under 9months','Under 1yr','Under 1.5yrs',
+                            'Over 1.5yrs'))
+summary(data$pdays)
+```
+
+
 
 ### Convert categorical variables
 
@@ -730,7 +744,7 @@ str(data_dummy)
 We can now follow the same reasoning for the other categorical variables:
 
 ```{r}
-data_dummy <- dummy_cols(data_dummy, select_columns = c('job','marital', 'education', 'default', 'housing', 'loan', 'month'), remove_selected_columns = TRUE)
+data_dummy <- dummy_cols(data_dummy, select_columns = c('job','marital', 'education', 'default', 'housing', 'loan', 'month', 'pdays'), remove_selected_columns = TRUE)
 ```
 
 Let's visualize a sample of the newly created data matrix:
@@ -765,6 +779,7 @@ One way to check for multivariate outliers  (non-parametric approach) is to use 
 The algorithm we are going to use (from the package [DDoutlier](https://rdrr.io/cran/DDoutlier/man/LOF.html)) computes a local density for observations with a given k-nearest neighbors (we choose k = 5). This local density is compared to the density of the respective nearest neighbors, resulting in the local outlier factor.
 
 Therefore, the function returns a vector of LOF scores for each observation: the greater the LOF, the greater the outlierness of the data point.
+
 
 ```{r message=FALSE,warning=FALSE}
 #install.packages('DDoutlier')
