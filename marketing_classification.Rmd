@@ -360,9 +360,9 @@ p <- ggplot(data, aes(x=poutcome, fill=y))+
 
 p + coord_flip()
 ```
-
-
-
+```{r}
+str(data)
+```
 
 
 
@@ -392,9 +392,7 @@ g7 <- ggplot(data, aes(x=previous)) +
 grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7, nrow=1);
 ```
 
-g6 <- ggplot(data, aes(x = x.6, fill = g)) +
-  geom_density(alpha = 0.7) + theme_bw() +
-    theme(legend.position="none")
+
 
 We can visualize also densities depending on the target variable value:
 
@@ -461,8 +459,8 @@ grid.arrange(g1,g2,nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1
 ```
 Observations:
 * for the 'balance' variable we can say that we have a very sparse solution: most of the clients have a very low bank account balance, while we have 2 observations with negative value and other 2 observations with a very high balance value.
-* for what regards the 'duration' variable we have 3 samples with very high values of the variable
-* also in 'campaign' we have some observations with too high value
+* for what regards the 'duration' variable we have 3 samples with very high values of the variable. The distribution of the variable is left skewed, with a very low mean, and there are a lot of values above the interquantile range, which we consider significant for the classification task and we will not consider all of them as outliers.
+* also in 'campaign' we have some observations with too high value: it seems that there are clients that have been contacted more than 40 times, with respectr to an average of arounf 2.8.
 
 We think it is interesting to see the results for the clients with the highest values of 'balance':
 
@@ -516,7 +514,7 @@ data[arr,]
 What we can understand from the above is that  calling many times a client has not a positive effect on their willingness to sign for the term deposit.
 
 
-We' ll remove only the first 2 observations with the highest campaign:
+We' ll remove only the first 2 observations with the highest campaign, since they consider clients called more that 40 times, which is a really high value that cannot be considered much realistic, especially considering the mean of that variable (2.8):
 
 ```{r}
 arr = c(order(data$campaign, decreasing=TRUE)[1:2])
@@ -583,6 +581,13 @@ ggplot(data, aes(x=duration, y=campaign, shape=y, color=y, size=y)) +
   geom_point()
 ```
 
+As shown in the above plot, 'duration' and 'campaign' variables allow to create aproximately 2 clusters of customers:
+* almost all the 'yes' clients are characterized by low value of 'campaign' and they may have also high 'duration'
+* 'no' clients have higher values on campaign and low 'duration' values
+
+An important observation is that an high value of the 'campaign' variable makes the clients to refuse to sign for the term deposit: almost all observations with 'campaign' value above 10 have 'no' as target variable value.
+
+
 
 It may be useful to better visualize the scatter plot of the 2 variables 'age' and 'contact', becasue it is more probable that older people are more used to be contaced by telephone:
 
@@ -591,7 +596,195 @@ ggplot(data, aes(x=contact, y=age, shape=y, color=y, size=y)) +
   geom_point()
 ```
 
-### Reduced representations
+It could be interesting to better visualize the scatter plot of the 2 variables 'age' and 'balance', encoding the target class in the plot:
+
+```{r}
+ggplot(data, aes(x=age, y=balance)) +
+  geom_point()
+```
+The above scatter plot doesn't show any strong relationship among the 2 variables: most of the customers contacted by the bank has low salary, independently from the age.
+
+
+We can now represent the correlation matrix among these quantitative variables: 
+```{r}
+# compute correlation matrix
+res <- cor(data[, cols])
+round(res, 2)
+```
+
+```{r}
+library(corrplot)
+corrplot(res, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+```
+The results confirms what we observed before: only 'pdays' and 'previous' are positively correlated to each other.
+
+
+## Preparing the dataset
+
+We'll now prepare the dataset for the classification task. We remind that our goal is to use the customers characteristics to predict whether they will sign for a term deposit. This will allow the bank to identify the customers to contact in future marketing campaigns.
+
+### Feature selection
+
+We think that the variables 'contact' and 'day' are not very useful for the classification taks:
+
+* for what regards the 'day' variable we have seen in the previous plots how it' density is pretty uniform along the days of the month, therefore we'll not consider that variable for performing the classification algorithms
+
+* the variable 'contact' indicates the type of mean used to contact the customers: the above plots show that it is not an interesting feature for the classification task.
+
+
+```{r}
+drop = c("contact", "day")
+data = data[,!(names(data) %in% drop)]
+```
+
+```{r}
+str(data)
+```
+
+### Convert categorical variables
+
+Since most classification algorithm work with continuous variables, we need to use a one-hot encoding of them.
+In order to do that, we'll convert all the categorical variables into 'dummy' variables, i.e. we  represent a categorical variable as a numerical variable for each category that takes on one of two values: zero or one
+
+We'll use the _dummyCols_ function of the *fastDummes* package of R:
+
+Let's see how it works for a single variable ('poutcome'):
+
+```{r}
+#install.packages('fastDummies')
+library('fastDummies')
+
+# Create dummy variables:
+data_dummy <- dummy_cols(data, select_columns = 'poutcome', remove_selected_columns = TRUE)
+```
+
+```{r}
+head(data_dummy)
+```
+```{r}
+summary(data_dummy)
+```
+As we can see, the creation of the dummy variables created a variable also for the value 'other' of the 'poutcome' variable, which we converted before into the 'unknown' value. Indeed the new variable 'poutcome_other' has value 0 for all individuals, we'll therefore drop it from our dataframe:
+
+```{r}
+drop = c("poutcome_other")
+data_dummy = data_dummy[,!(names(data_dummy) %in% drop)]
+```
+
+```{r}
+str(data_dummy)
+```
+
+We can now follow the same reasoning for the other categorical variables:
+
+```{r}
+data_dummy <- dummy_cols(data_dummy, select_columns = c('job','marital', 'education', 'default', 'housing', 'loan', 'month'), remove_selected_columns = TRUE)
+```
+
+Let's visualize a sample of the newly created data matrix:
+
+
+```{r}
+data_dummy %>%
+  sample_n(., 10, replace=FALSE) %>% 
+  kbl(caption = "Marketing Campaigns of Portuguese Bank (sample of 20)") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+The last operation we need to do is to convert the 'yes' value of 'y' variable into 1 and 'no' into 0:
+```{r}
+data_dummy$y <- ifelse(data_dummy$y=="yes",1,0)
+```
+
+```{r}
+data_dummy %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Marketing Campaigns of Portuguese Bank") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+### Multivariate outliers
+
+We can now perform some multivariate outlier detection algorithms, for detecting and removing outliers in the multivariate space.
+
+One way to check for multivariate outliers  (non-parametric approach) is to use the LOF ("local outlier factor") algorithm, which identifies density-based local outliers.
+
+The algorithm we are going to use (from the package [DDoutlier](https://rdrr.io/cran/DDoutlier/man/LOF.html)) computes a local density for observations with a given k-nearest neighbors (we choose k = 5). This local density is compared to the density of the respective nearest neighbors, resulting in the local outlier factor.
+
+Therefore, the function returns a vector of LOF scores for each observation: the greater the LOF, the greater the outlierness of the data point.
+
+```{r message=FALSE,warning=FALSE}
+#install.packages('DDoutlier')
+library("DDoutlier")
+lof <- LOF(data_dummy, k = 5) # outlier score with a neighborhood of 5 points
+```
+
+We can show the lof scores for the 5 first observations:
+
+```{r}
+head(lof)
+```
+
+We can see and visualize the distribution of outlier scores:
+
+```{r}
+summary(lof) # some statistics
+hist(lof)
+```
+
+It could be useful to plot also the sorted LOF scores:
+
+```{r}
+plot(sort(lof), type = "l",  main = "LOF (K = 5)",
+  xlab = "Points sorted by LOF", ylab = "LOF")
+```
+
+Looks like outliers start around a LOF value of 2.0.
+
+Let's show the indexes for 5 most outlying observations
+
+```{r}
+lof_with_names = lof
+names(lof_with_names) <- 1:nrow(data_dummy)
+sort(lof_with_names, decreasing = TRUE)[1:5]
+```
+
+Let's first find the indexes of the outliers with a lof score above 2.0:
+
+```{r}
+outliers_lof <- which(lof > 2.0)
+```
+
+Number of detected outliers:
+
+```{r}
+length(outliers_lof)
+```
+
+```{r}
+outliers_lof
+```
+
+
+We will simply remove the found outliers (found with lof) from the dataset (taking into account that k-means algorithm is very sensible to outliers):
+
+```{r}
+data_dummy = data_dummy[-outliers_lof,] 
+```
+
+Let's now check again the dimensions:
+
+```{r}
+dim(data_dummy)
+```
+
+The outliers have been correctly removed!
+
+
+
+### PCA
 
 A further step to gain more insights about the dataset could be to perform dimensional reductions by applying factor analysis methods.
 
@@ -602,10 +795,13 @@ Since we don't have specific groups of variables, we'll perform first a PCA by u
 We'll use *FactoMineR* for performing the PCA:
 
 ```{r}
-qual = c(2, 3, 4, 5, 7, 8, 9, 11, 16, 17)
-quant = c(1, 6, 10, 12, 13, 14)
-data_ = data[2:18]
-res.pca = PCA(data_, scale.unit=TRUE, ncp=5, quali.sup=qual, graph=F)
+str(data_dummy)
+```
+
+
+```{r}
+data_ = data_dummy[2:18]
+res.pca = PCA(data_, scale.unit=TRUE, ncp=5, graph=F)
 ```
 
 ```{r}
@@ -628,6 +824,14 @@ fviz_pca_ind(res.pca,
              repel = TRUE     # Avoid text overlapping
              )
 ```
+
+```{r}
+fviz_pca_ind(res.pca,
+             col.ind = data_dummy$y,
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+
 
 We are more interested in visualizing the variables plot:
 
@@ -655,10 +859,11 @@ The correlation between 'balance' and 'age' may be easily interpretable with the
 Biplot:
 
 ```{r}
+data_dummy[,"y"] = as.factor(data_dummy[,"y"])
 fviz_pca_biplot(res.pca, repel = TRUE,
                 axes = c(1,2),
                 col.var = "black", # Variables color
-                col.ind = data$y,
+                col.ind = data_dummy$y,
                 addEllipses = TRUE
                 )
 ```
@@ -669,29 +874,60 @@ Our next step is therefore to try to apply an LDA, just for visualizing better t
 
 ```{r}
 library(MASS)
-quant = c(1, 6, 10, 12, 13, 14,17)
-data_q = data_[, quant]
-(model <- lda(y~., data = data_q))
+(model <- lda(y~., data = data_dummy))
+```
+
+```{r}
+plot(model)
 ```
 
 
 
-
-
-
-
-## Preparing the dataset
-### Feature selection
-
-We think that the variables 'contact' and 'day' are not very useful for the classification taks:
-* for what regards the 'day' variable we have seen in the previous correlation matrix how it' density is pretty uniform along the days of the month, therefore we'll not consider that variable for performing the classification algorithms
-
-* the variable 'contact' indicates the type of mean used to contact the customers: the above plots show that it is not an interesting feature for the classification task.
-
 ### Splitting
+
+We' ll split the dataset into training and validattion:
+* 80% of the original data will be used for training
+* the reaming 20% will be used to evaluate the final performance of the classifier
+
+An important remark is that the considered dataset is highly unbalanced: most of the customers belong to the 'no' values of the target variable. For that reason, and in other to have a fair evaluation of our algorithms we'll perform a stratified splitting:
+* we'll select 80% among all the clients belonging to the positive class for training and 20% for testing
+* we'll select 80% among all the clients belonging to the negative class for training and 20% for testing
+
+In this way we'll have the same distribution of observations 
+
+```{r}
+#Training & Test Datasets
+deposit_yes <- data_dummy[which(data_dummy$y == 1), ]  # all yes's of outcome class
+deposit_no <- bank[which(bank$y == 'no'), ]  # all no's of outcome class
+set.seed(100)
+deposit_yes_training_rows <- sample(1:nrow(deposit_yes), 0.7*nrow(deposit_yes))  #randomly choosing 70% observations of yes class
+deposit_no_training_rows <- sample(1:nrow(deposit_no), 0.7*nrow(deposit_no))  #randomly choosing 70% observations of yes class
+training_yes <- deposit_yes[deposit_yes_training_rows, ]  
+training_no <- deposit_no[deposit_no_training_rows, ]
+trainingData <- rbind(training_yes, training_no)  #combining chosen observations
+glimpse(trainingData)
+table(trainingData$y)
+
+
+# Create Test Data
+test_yes <- deposit_yes[-deposit_yes_training_rows, ]
+test_no <- deposit_no[-deposit_no_training_rows, ]
+testData <- rbind(test_yes, test_no)  #combining chosen observations
+glimpse(testData)
+table(testData$y)
+```
+
+```{r}
+#Training & Test Datasets
+deposit_yes <- data_dummy[which(data_dummy$y == 1), ]  # all yes's of outcome class
+
+```
+
 ### Scaling
 
 ```{r}
 
 ```
+
+### Convert categorical variables
 
