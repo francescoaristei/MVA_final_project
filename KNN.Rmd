@@ -1,0 +1,231 @@
+---
+title: "Marketing Campaigns of Portuguese Bank"
+author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+fontsize: 10 pt
+geometry: margin=0.5in
+output:
+  pdf_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+  html_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+subtitle: KNN classifier
+toc-title: Outline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
+```
+
+Delete all the possible objects of R that could have been left in memory:
+```{r, include=TRUE}
+rm(list = ls())
+```
+
+### Load data
+
+```{r}
+load("data.RData")
+```
+
+We can change values of the target variable int 'yes' and 'no':
+
+```{r}
+testData$y <- as.factor(ifelse(testData$y=='1',"yes","no"))
+trainingData$y <- as.factor(ifelse(trainingData$y=='1',"yes","no"))
+```
+
+Let's visualize the main statistics of the training data
+```{r}
+library(dplyr)
+library(kableExtra)
+library(stats)
+trainingData %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Training data") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Test data:
+
+```{r}
+library(dplyr)
+library(kableExtra)
+library(stats)
+testData %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Test data") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Variables structure:
+
+```{r}
+str(testData)
+```
+
+Levels of the target factor variable:
+
+```{r}
+levels(trainingData$y)
+```
+
+We can change the levels ordering:
+
+```{r}
+trainingData$y <- relevel(trainingData$y, ref = "yes")
+testData$y <- relevel(testData$y, ref = "yes")
+levels(trainingData$y)
+```
+
+The positive value is now located on position 1 of the levels.
+
+
+# KNN classifier
+
+We' ll use the *caret* package for applying KNN.
+
+At first let's load the package:
+
+```{r}
+library("caret")
+```
+
+```{r}
+# set seed for repeating the experiments
+set.seed(123)
+```
+
+
+We'll run KNN on the training dataset by applying cross-validation (10-fold) for selecting the optimal value of the K parameter. We can define this in the 'trainControl' function:
+
+```{r}
+fitControl <- trainControl(method = "cv",
+                           number = 10, 
+                           ## Estimate class probabilities
+                           classProbs = TRUE
+)
+```
+
+We can now train the model. Since this method is based on distances, it makes sense to normalize and scale the dataset using the 'preProcess' parameter of the 'train' method:
+
+```{r}
+knn.mod1 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "knn", 
+                 trControl = fitControl, 
+                 tuneGrid = expand.grid(k = seq(1, 70, by = 2))
+)
+```
+
+
+Let's print the resulting model:
+
+```{r}
+knn.mod1
+```
+
+
+We can plot the metrics used for the optimization of K:
+
+```{r}
+plot(knn.mod1)
+```
+
+Best K that optimizes the accuracy:
+
+```{r}
+#Best k-value chosen by KNN
+knn.mod1$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.knn.pred = predict(knn.mod1, testData)
+```
+
+We can show the confusion matrix:
+
+```{r}
+confusionMatrix(y.knn.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+The confusion matrix shows that the model is very good at predicting the negative class, since it is the most represented in the dataset; while it predicts only 1 correct sample in the positive class. 
+Therefore, the accuracy is very high (88.58%) and also the precision, while the recall and the F1-score are very low.
+
+
+Indeed KNN is run by default by using 'accuracy' as an evaluation metric. In our case this may be misleading since the dataset is highly unbalanced, that's why we now use the _F-score_ to tune the value of k.
+*Caret* contains a summary function called _prSummary_ that provides the _F-score_:
+
+```{r}
+fitControl <- trainControl(method = "cv",
+                           number = 10, 
+                           ## Estimate class probabilities
+                           classProbs = TRUE,
+                           summaryFunction = prSummary
+)
+```
+
+Let's retrain the model using the F-score to select k:
+
+```{r}
+knn.mod2 <- train(y ~ ., 
+                 data = trainingData, # train data 
+                 preProcess = c("center","scale"),
+                 method = "knn", 
+                 trControl = fitControl, 
+                 tuneGrid = expand.grid(k = seq(1, 70, by = 2)),
+                 metric = "F"
+)
+```
+
+Print the model:
+
+```{r}
+knn.mod2
+```
+
+Plot F-score against k:
+
+```{r}
+plot(knn.mod2)
+```
+
+In this case the optimal chosen k is 1.
+
+Predict test data:
+
+```{r}
+y.knn.pred = predict(knn.mod2, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.knn.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+This new model improves quite a lot the recall and the F1 score and also the balanced accuracy, which are the main metrics to look in our problem.
+However the results are still very poor.
+
+
+We can also visualize the importance of each variable according to the chosen model:
+```{r}
+#Variable importance by SVM model
+varImp(knn.mod2)
+```
