@@ -5,7 +5,7 @@ date: "`r format(Sys.time(), '%d %B %Y')`"
 fontsize: 10 pt
 geometry: margin=0.5in
 output:
-  pdf_document:
+  html_document:
     fig_width: 6
     fig_height: 4
     toc: true
@@ -13,7 +13,7 @@ output:
     number_sections: true
     fig_caption: True
     df_print: kable
-  html_document:
+  pdf_document:
     fig_width: 6
     fig_height: 4
     toc: true
@@ -30,6 +30,7 @@ knitr::opts_chunk$set(echo = TRUE, fig.align="center")
 ```
 
 Delete all the possible objects of R that could have been left in memory:
+
 ```{r, include=TRUE}
 rm(list = ls())
 ```
@@ -57,7 +58,6 @@ library(cluster)
 library(factoextra)
 library(FactoMineR)
 ```
-
 
 
 # Exploratory data analysis
@@ -1054,9 +1054,8 @@ An important remark is that the considered dataset is highly unbalanced: most of
 In this way we'll have the same distribution of observations inside the two classes in both the training and test set.
 
 
-
 ```{r}
-data_dummy <- data_dummy %>% relocate(y, .after = month_sep )
+data_dummy <- data_dummy %>% relocate(y, .after = "pdays_Over 1.5yrs")
 ```
 
 ```{r}
@@ -1122,11 +1121,6 @@ data_dummy_scaled$previous = normalize(data_dummy_scaled$previous)
 ```
 
 
-
-
-
-
-
 ```{r}
 data_dummy_scaled[,"y"] = as.factor(data_dummy_scaled[,"y"])
 str(data_dummy_scaled)
@@ -1159,11 +1153,10 @@ glimpse(testData_scaled)
 table(testData_scaled$y)
 ```
 
-We can save the scaled and the not scaled training and test dataset:
+We can save the scaled and the not scaled training and test dataset, so that we can direclty use them in the main algorithms:
 
 ```{r}
 save(trainingData, testData, trainingData_scaled, testData_scaled, file = "data.RData")
 ```
-
 
 

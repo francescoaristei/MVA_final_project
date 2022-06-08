@@ -1,0 +1,580 @@
+---
+title: "Marketing Campaigns of Portuguese Bank"
+author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+fontsize: 10 pt
+geometry: margin=0.5in
+output:
+  pdf_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+  html_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+subtitle: SVM classifier
+toc-title: Outline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
+```
+
+Delete all the possible objects of R that could have been left in memory:
+```{r, include=TRUE}
+rm(list = ls())
+```
+
+### Load data
+
+```{r}
+load("data.RData")
+```
+
+We can change values of the target variable int 'yes' and 'no':
+
+```{r}
+testData$y <- as.factor(ifelse(testData$y=='1',"yes","no"))
+trainingData$y <- as.factor(ifelse(trainingData$y=='1',"yes","no"))
+```
+
+Let's visualize the main statistics of the training data:
+
+```{r}
+library(dplyr)
+library(kableExtra)
+library(stats)
+
+trainingData %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Training data") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Test data:
+
+```{r}
+library(dplyr)
+library(kableExtra)
+library(stats)
+testData %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Test data") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Variables structure:
+
+```{r}
+str(testData)
+```
+
+Levels of the target factor variable:
+
+```{r}
+levels(trainingData$y)
+```
+
+We can change the levels ordering:
+
+```{r}
+trainingData$y <- relevel(trainingData$y, ref = "yes")
+testData$y <- relevel(testData$y, ref = "yes")
+levels(trainingData$y)
+```
+
+The positive value is now located on position 1 of the levels.
+
+
+# SVM classifier
+
+We' ll use the *caret* package for applying SVM, which performs a non-linear classification using what is called the kernel trick. The most commonly used kernel transformations are polynomial kernel and radial kernel.
+
+At first let's load the *caret* package:
+
+```{r}
+library("caret")
+```
+
+```{r}
+# set seed for repeating the experiments
+set.seed(123)
+```
+
+
+We'll run SVM on the training dataset by applying cross-validation (10-fold):
+
+```{r}
+fitControl <- trainControl(method = "cv",
+                           number = 10, 
+                           # Estimate class probabilities
+                           classProbs = TRUE,
+                           summaryFunction = prSummary
+)
+```
+
+
+## SVM with linear kernel
+
+Let's first run the SVM with a linear kernel, which is a simple linear classifier. For the moment we'll not apply any kind of hyperparameter tuning.
+We will use this first SVM model as a baseline for building the following ones. 
+Again we'll center and scale the variables to make their scale comparable, and we'll use the _F-score_ as a validation metric:
+
+```{r}
+svm.mod1 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "svmLinear", 
+                 trControl = fitControl,
+                 metric = "F"
+)
+```
+
+Let's print the results:
+
+```{r}
+svm.mod1
+```
+As shown by the result, the tuning parameter 'C' is set to a standard value of 1 (no tuning). 
+This parameter imposes a penalty to the model for making an error: the higher the value of C, the less likely it is that the SVM algorithm will misclassify a point.
+
+
+Predict test data:
+
+```{r}
+y.svm.pred = predict(svm.mod1, testData)
+```
+
+We can show the confusion matrix:
+
+```{r}
+confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+This model has lower performances than our best KNN model.
+
+
+We can visualize the importance of each variable:
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod1)
+```
+
+
+We can now perform hyperparameter tuning of the 'C' parameter: we can create a grid with different values of it:
+
+```{r}
+svm.mod2 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "svmLinear", 
+                 trControl = fitControl,
+                 tuneGrid = expand.grid(C = seq(0, 2, length = 20)),
+                 metric = "F"
+)
+```
+
+Model:
+
+```{r}
+svm.mod2
+```
+
+Plot F-score with different values of cost:
+
+```{r}
+plot(svm.mod2)
+```
+
+
+Print the best tuning parameter C that maximizes model F-score:
+
+```{r}
+svm.mod2$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.svm.pred = predict(svm.mod2, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+As we can see, parameter C doesn't change the performances.
+
+Variable importance
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod2)
+```
+
+
+## SVM with Radial Kernel
+
+*Caret* package allows to use a radial kernel function, that allows to find a non-linear classification boundary among the 2 classes.
+In this case we'll use the 'tuneLength' parameter which randomly tries several parameters combinations.
+
+```{r}
+svm.mod3 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "svmRadial", 
+                 trControl = fitControl,
+                 tuneLength = 20,
+                 metric = "F"
+)
+```
+
+Print model:
+
+```{r}
+svm.mod3
+```
+
+Plot F-score with different values of cost:
+
+```{r}
+plot(svm.mod3)
+```
+
+
+Print the best tuning parameters that maximize model's F-score:
+
+```{r}
+svm.mod3$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.svm.pred = predict(svm.mod3, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+We've slightly improved the F-score, reaching a value of 0.36.
+
+
+Variables importance:
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod3)
+```
+
+## SVM with Polynomial Kernel
+
+*Caret* package allows also to use a polynomial kernel function, that allows to find a non-linear classification boundary among the 2 classes.
+We'll use the 'tuneLength' parameter which randomly tries several parameters combinations.
+
+```{r}
+svm.mod4 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "svmPoly", 
+                 trControl = fitControl,
+                 tuneLength = 3,
+                 metric = "F"
+)
+```
+
+```{r}
+svm.mod4
+```
+
+Plot F-score with different values of cost:
+
+```{r}
+plot(svm.mod4)
+```
+
+
+Print the best tuning parameters that maximize model's F-score:
+
+```{r}
+svm.mod4$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.svm.pred = predict(svm.mod4, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+
+Variable importance
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod4)
+```
+
+
+# Handling class imbalance
+
+Since the problem we are facing is very challenging due to the fact that one class heavily out-weights the other, we'll try to adopt some strategies to reduce the effect of this class imbalance on the training of the algorithm.
+
+
+## Down-sampling
+
+We'll now try to further boost the performance of our algorithm by adopting the down-sampling technique, which consists in removing instances in the majority class.
+This is one of the many techniques that can be used to deal with an highly imbalanced dataset.
+In can be easily implemented by using the sampling argument in the 'trainControl' function:
+
+```{r}
+fitControl$sampling <- "down"
+```
+
+
+Fit the model:
+
+```{r}
+svm.mod6 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "svmRadial", 
+                 trControl = fitControl,
+                 tuneLength = 10,
+                 metric = "F",
+                 verbose = FALSE
+)
+```
+
+```{r}
+svm.mod6
+```
+
+Plot F-score with different values of cost:
+
+```{r}
+plot(svm.mod6)
+```
+
+
+Print the best tuning parameters that maximize model's ROC:
+
+```{r}
+svm.mod6$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.svm.pred = predict(svm.mod6, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+We've achieved a very nice result and improvement with respect to all the previously analyzed models:
+* F1 score is 48%
+* Balanced Accuracy is 79.8%
+
+
+Variables importance:
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod6)
+```
+
+
+
+## Smote
+
+Another possible approach is to apply the so-called Synthetic minority sampling technique (SMOTE), which down samples the majority class and synthesizes new minority instances by interpolating between existing ones.
+
+
+We add the sampling parameter to the 'fitControl' function:
+
+```{r}
+fitControl$sampling <- "smote"
+fitControl$verboseIter = TRUE # to visualize running process
+```
+
+
+Fit the model:
+
+```{r}
+svm.mod7 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "svmRadial", 
+                 trControl = fitControl,
+                 tuneLength = 10,
+                 metric = "F",
+                 verbose = FALSE
+)
+```
+
+Print model:
+
+```{r}
+svm.mod7
+```
+
+
+Plot F-score with different values of cost:
+
+```{r}
+plot(svm.mod7)
+```
+
+
+Print the best tuning parameters that maximize model's ROC:
+
+```{r}
+svm.mod7$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.svm.pred = predict(svm.mod7, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+This model has quite similar results to the previous one:
+* it slightly reducesthe balanced accuracy
+* but it improves the F1 score
+
+
+Variables importance:
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod7)
+```
+
+
+As a further step, we could also try the Up-sampling technique, which consists in randomly replicating instances in the minority class. However, due to the high size of the training dataset, the training process and the cross-validation may require a lot of time, therefore we'll now focus of doing som more hyperparameter tuning on the best SVM model found so far, i.e. the one based on under-sampling.
+
+
+
+
+### More hyperparameter tuning
+
+We'll now try to improve the performance of the model based on down-sampling by trying several hyperparameters configurations.
+
+We first change the 'sampling' parameter:
+
+```{r}
+fitControl$sampling <- "down"
+```
+
+
+We now define a list of tuning parameters 'C' and 'sigma':
+
+```{r}
+grid_radial <- expand.grid(
+  sigma = c(0,0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.06, 0.07,0.08, 0.09, 0.1,   0.14, 0.25, 0.5,0.75,0.9),
+  C = c(0,0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 2,5))
+```
+
+We can now train the model:
+
+```{r}
+svm.mod8 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "svmRadial", 
+                 trControl = fitControl,
+                 tuneGrid = grid_radial,
+                 tuneLength = 10,
+                 metric = "F",
+                 verbose = FALSE
+)
+```
+
+
+Print model:
+```{r}
+svm.mod8
+```
+
+Plot ROC with different values of cost:
+
+```{r}
+plot(svm.mod8)
+```
+
+Predict test data:
+
+```{r}
+y.svm.pred = predict(svm.mod8, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+
+Variables importance:
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod8)
+```
+
+
+
+### TRY APPLYING PCA??? as preprocessing
+
+preProcess = c("pca","scale","center"),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

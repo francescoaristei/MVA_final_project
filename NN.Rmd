@@ -1,0 +1,266 @@
+---
+title: "Marketing Campaigns of Portuguese Bank"
+author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+fontsize: 10 pt
+geometry: margin=0.5in
+output:
+  pdf_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+  html_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+subtitle: Neural Network classifier
+toc-title: Outline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
+```
+
+Delete all the possible objects of R that could have been left in memory:
+```{r, include=TRUE}
+rm(list = ls())
+```
+
+### Load data
+
+```{r}
+load("data.RData")
+```
+
+We can change values of the target variable int 'yes' and 'no':
+
+```{r}
+testData$y <- as.factor(ifelse(testData$y=='1',"yes","no"))
+trainingData$y <- as.factor(ifelse(trainingData$y=='1',"yes","no"))
+```
+
+Let's visualize the main statistics of the training data:
+
+```{r}
+library(dplyr)
+library(kableExtra)
+library(stats)
+
+trainingData %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Training data") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Test data:
+
+```{r}
+library(dplyr)
+library(kableExtra)
+library(stats)
+testData %>% 
+  summary(.) %>% 
+  kbl(caption = "Basic statistics. Test data") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Variables structure:
+
+```{r}
+str(testData)
+```
+
+Levels of the target factor variable:
+
+```{r}
+levels(trainingData$y)
+```
+
+We can change the levels ordering:
+
+```{r}
+trainingData$y <- relevel(trainingData$y, ref = "yes")
+testData$y <- relevel(testData$y, ref = "yes")
+levels(trainingData$y)
+```
+
+The positive value is now located on position 1 of the levels.
+
+
+# NN  classifier
+
+We' ll use the *caret* package for training NN-based models.
+
+At first let's load the *caret* package:
+
+```{r}
+library("caret")
+```
+
+```{r}
+# set seed for repeating the experiments
+set.seed(123)
+```
+
+
+We'll run the NN model training on the training dataset by applying cross-validation (10-fold) and by using the _F-score_ as a validation metric:
+
+```{r}
+fitControl <- trainControl(method = "cv",
+                           number = 10, 
+                           # Estimate class probabilities
+                           classProbs = TRUE,
+                           summaryFunction = prSummary,
+                           verboseIter = TRUE # to visualize running process
+)
+```
+
+
+## NN baseline
+
+Let's run a simple neural network by specifying the method 'nnet' in the 'train' function: this method implements a very trivial feed-forward neural network with a single hidden layer. 
+
+It is simply composed by:
+* an input layer
+* an hidden layer
+* an output layer
+
+The network has the following hyperparameters that needs to be tuned:
+* the number of neurons in the hidden layer. These neurons compute a sigmoidal activation function.
+
+* the 'weight decay' parameter which applies regularization to prevent overfitting: we'll tune also the weight decay.
+
+Let's define the lists of hyperparameters to try:
+
+```{r}
+grid_nn <- expand.grid(
+  size = c(5, 10, 15, 20), # neurons in the hidden layer
+  decay = c(0.0001, 0.001, 0.01, 0.1)) # decay rate
+```
+
+
+```{r}
+nn.mod1 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "nnet", 
+                 trControl = fitControl,
+                 tuneGrid = grid_nn,
+                 metric = "F",
+                 verbose = FALSE,
+                 maxit = 5000
+)
+```
+
+Print model:
+
+```{r}
+nn.mod1
+```
+
+Plot F-score with different values of cost:
+
+```{r}
+plot(nn.mod1)
+```
+
+
+Print the best tuning parameters that maximize model's ROC:
+
+```{r}
+nn.mod1$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.nn.pred = predict(nn.mod1, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.nn.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+We've achieved a quite nice result, which is still worse than the one we obtained with SVM:
+* F1 score is 42%
+* Balanced Accuracy is 66%
+
+
+Variables importance:
+
+```{r}
+#Variable importance by SVM model
+varImp(nn.mod1)
+```
+
+
+
+### Weighting 
+
+An approach that we could use to improve the classifier performance on an unbalanced dataset is class weighting. It comsists in imposing a heavier cost when errors are made in the minority class.
+
+We need to create weights for each training sample:
+* for 'no' examples we give a lower weight
+* for 'yes' examples we give an higher weight
+
+Notice that the sum of the weights is 1:
+
+```{r}
+model_weights <- ifelse(trainingData$y == "no",
+                        (1/table(trainingData$y)[2]) * 0.5,
+                        (1/table(trainingData$y)[1]) * 0.5)
+```
+
+
+
+We change the grid of parameters:
+* we reduce the 'size' list since the model obtains higher performance with a few hidden neurons:
+
+
+```{r}
+grid_nn <- expand.grid(
+  size = c(5, 10, 12), # neurons in the hidden layer
+  decay = c(0.0001, 0.001, 0.01, 0.1)) # decay rate
+```
+
+We can now fit the model:
+
+```{r}
+nn.mod2 <- train(y ~ ., 
+                 data = trainingData, # train data  
+                 preProcess = c("center","scale"),
+                 method = "nnet", 
+                 trControl = fitControl,
+                 tuneGrid = grid_nn,
+                 metric = "F",
+                 verbose = FALSE,
+                 maxit = 50,
+                 weights = model_weights, # apply weights
+)
+```
+
+Print model:
+
+```{r}
+nn.mod2
+```
+
+```{r}
+svm.mod6 %>%
+  test_roc(data = testData) %>%
+  auc()
+```
+
+
+
