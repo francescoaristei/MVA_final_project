@@ -9,7 +9,7 @@ output:
 
 ```{r setup, include=FALSE}
 load("data.RData")
-data <- load("preprocessed_data.RData")
+load("preprocessed_data.RData")
 set.seed(67600)
 ```
 
@@ -192,7 +192,7 @@ plot(mtry_vals, oob_vals)
 ```
 
 ```{r}
-rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=6)
+rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=3)
 print(rf)
 ```
 
@@ -206,11 +206,17 @@ table(pred=pred, true=testData_withcat$y)
 paste(mean(pred==testData_withcat$y), bal_accuracy_vec(pred, truth=testData_withcat$y, estimator="binary"))
 ```
 
+```{r}
+tab = confusionMatrix(pred, testData_withcat$y)
+tab$table
+tab$byClass['F1']
+```
+
 After applying the algorithm to optimize the number of variables as before, we found a optimal OOB error using 6 variables. We then had a balanced score of 69% which is a 3% improvement thanks to mtry optimization.
 
 ## Variable importance
 ```{r}
-rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=6, importance=TRUE)
+rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=3, importance=TRUE)
 importance(rf)
 varImpPlot(rf)
 ```
@@ -226,8 +232,8 @@ optimal_ntree <- function(ntree){
   print(ntree)
   scores = c()
   for(i in 1:10){
-      rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, ntree=ntree, mtry=6)
-    scores = c(scores, c(min(rf$err.rate[,1])))
+      rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, ntree=ntree, mtry=3)
+    scores = c(scores, min(rf$err.rate[,1]))
   }
   print(scores)
   
@@ -236,7 +242,7 @@ optimal_ntree <- function(ntree){
 ```
 
 ```{r}
-ntrees = seq(100, 1000, by=100)
+ntrees = seq(100, 3000, by=150)
 ntrees_scores = lapply(ntrees, optimal_ntree)
 plot(ntrees, ntrees_scores)
 ```
@@ -246,7 +252,7 @@ plot(ntrees, ntrees_scores)
 
 
 ```{r}
-rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=6, ntree=1000)
+rf = randomForest(formula = y ~ age + job + marital + education + default + balance + housing + loan + month + duration + campaign + pdays + previous + poutcome, data=trainingData_withcat, mtry=3, ntree=2000)
 print(rf)
 ```
 
@@ -259,4 +265,9 @@ paste(mean(pred==testData_withcat$y), bal_accuracy_vec(pred, truth=testData_with
 ```
 After optimizing the number of trees, we have a 70% balanced accuracy score, which is better than before.
 
+```{r}
+tab = confusionMatrix(pred, testData_withcat$y)
+tab$table
+tab$byClass['F1']
+```
 
