@@ -53,6 +53,7 @@ Let's visualize the main statistics of the training data:
 library(dplyr)
 library(kableExtra)
 library(stats)
+
 trainingData %>% 
   summary(.) %>% 
   kbl(caption = "Basic statistics. Training data") %>%
@@ -110,12 +111,12 @@ set.seed(123)
 ```
 
 
-We'll run SVM on the training dataset and applying cross-validation (10-fold):
+We'll run SVM on the training dataset by applying cross-validation (10-fold):
 
 ```{r}
 fitControl <- trainControl(method = "cv",
                            number = 10, 
-                           ## Estimate class probabilities
+                           # Estimate class probabilities
                            classProbs = TRUE,
                            summaryFunction = prSummary
 )
@@ -125,7 +126,7 @@ fitControl <- trainControl(method = "cv",
 ## SVM with linear kernel
 
 Let's first run the SVM with a linear kernel, which is a simple linear classifier. For the moment we'll not apply any kind of hyperparameter tuning.
-We will this first SVM model as a baseline for building the following ones. 
+We will use this first SVM model as a baseline for building the following ones. 
 Again we'll center and scale the variables to make their scale comparable, and we'll use the _F-score_ as a validation metric:
 
 ```{r}
@@ -169,8 +170,8 @@ We can visualize the importance of each variable:
 varImp(svm.mod1)
 ```
 
-We can now perform hyperparameter tuning of the 'C' parameter: we can create a grid with different values of it:
 
+We can now perform hyperparameter tuning of the 'C' parameter: we can create a grid with different values of it:
 
 ```{r}
 svm.mod2 <- train(y ~ ., 
@@ -182,6 +183,8 @@ svm.mod2 <- train(y ~ .,
                  metric = "F"
 )
 ```
+
+Model:
 
 ```{r}
 svm.mod2
@@ -226,7 +229,7 @@ varImp(svm.mod2)
 ## SVM with Radial Kernel
 
 *Caret* package allows to use a radial kernel function, that allows to find a non-linear classification boundary among the 2 classes.
-In this case we'll use the 'tuneLength' parameter wich randomly tries several parameters combinations.
+In this case we'll use the 'tuneLength' parameter which randomly tries several parameters combinations.
 
 ```{r}
 svm.mod3 <- train(y ~ ., 
@@ -239,6 +242,8 @@ svm.mod3 <- train(y ~ .,
 )
 ```
 
+Print model:
+
 ```{r}
 svm.mod3
 ```
@@ -250,7 +255,7 @@ plot(svm.mod3)
 ```
 
 
-Print the best tuning parametes  that maximizes model F-score:
+Print the best tuning parameters that maximize model's F-score:
 
 ```{r}
 svm.mod3$bestTune
@@ -271,7 +276,8 @@ confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
 
 We've slightly improved the F-score, reaching a value of 0.36.
 
-Variable importance
+
+Variables importance:
 
 ```{r}
 #Variable importance by SVM model
@@ -305,7 +311,7 @@ plot(svm.mod4)
 ```
 
 
-Print the best tuning parameters  that maximizes model F-score:
+Print the best tuning parameters that maximize model's F-score:
 
 ```{r}
 svm.mod4$bestTune
@@ -324,7 +330,6 @@ Confusion matrix:
 confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
 ```
 
-As we can see, parameter C doesn't change the performances.
 
 Variable importance
 
@@ -336,114 +341,14 @@ varImp(svm.mod4)
 
 # Handling class imbalance
 
-Since the problem we are facing is very challenging due to the fact that one class heavily outweights the other, we'll try to adopt some strategies to reduce the effect of this class imbalance on the training of the algorithm.
-
-As a first solution, we'll change the metric used to optimize the model from the F-score to the ROC. 
-Indeed the F-score is computed on the confusion matrix, therefore it assumes an hard cutoff on the preficted probabilities: this means that they use a standard cutoff of 0.5 to predict a sample. This results in the model predicting that all observations belong to the majority class.
-
-On the contrary, the ROC metric is threshold-invariant: it quantifies true positive rate as a function of false positive rate for a variety of classification thresholds. Another way to interpret this metric is the probability that a random positive instance will have a higher estimated probability than a random negative instance.
+Since the problem we are facing is very challenging due to the fact that one class heavily out-weights the other, we'll try to adopt some strategies to reduce the effect of this class imbalance on the training of the algorithm.
 
 
-## SVM with ROC metric
+## Down-sampling
 
-We change the 'summaryFunction' parameter in the 'trainControl' method:
-
-```{r}
-fitControl <- trainControl(method = "cv",
-                           number = 10, 
-                           ## Estimate class probabilities
-                           classProbs = TRUE,
-                           summaryFunction = twoClassSummary
-)
-```
-
-
-Let's run the model usign the ROC:
-
-```{r}
-svm.mod5 <- train(y ~ ., 
-                 data = trainingData, # train data  
-                 preProcess = c("center","scale"),
-                 method = "svmRadial", 
-                 trControl = fitControl,
-                 tuneLength = 10,
-                 metric = "ROC"
-)
-```
-
-
-```{r}
-svm.mod5
-```
-
-Plot F-score with different values of cost:
-
-```{r}
-plot(svm.mod5)
-```
-
-
-Print the best tuning parameters  that maximizes model F-score:
-
-```{r}
-svm.mod5$bestTune
-```
-
-
-Predict test data:
-
-```{r}
-y.svm.pred = predict(svm.mod5, testData)
-```
-
-Confusion matrix:
-
-```{r}
-confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
-```
-
-
-Variables importance:
-
-```{r}
-#Variable importance by SVM model
-varImp(svm.mod5)
-```
-
-
-
-
-We now build a function to plot the AUC (area under the curve), that represents the area under the ROC curve. This function takes the model and the test set and returns the AUC value:
-
-
-```{r}
-test_roc <- function(model, data) {
-  
-  roc(data$y,
-      predict(model, data, type = "prob")[, "yes"])
-}
-```
-
-```{r}
-#install.packages("pROC")
-library(pROC)
-
-svm.mod5 %>%
-  test_roc(data = testData) %>%
-  auc()
-```
-
-CALCOLARE LA ROC NEL SVM CON F SCORE
-
-
-We'll now try to improve the ROC by using the under-sampling technique
-
-### Down-sampling
-
-Down-sampling method consists in removing instances in the majority class.
-In can be easily implemented by using the sampling argument in the trainControl function.
-
-We add the sampling parameter to the 'fitControl' function:
+We'll now try to further boost the performance of our algorithm by adopting the down-sampling technique, which consists in removing instances in the majority class.
+This is one of the many techniques that can be used to deal with an highly imbalanced dataset.
+In can be easily implemented by using the sampling argument in the 'trainControl' function:
 
 ```{r}
 fitControl$sampling <- "down"
@@ -459,7 +364,7 @@ svm.mod6 <- train(y ~ .,
                  method = "svmRadial", 
                  trControl = fitControl,
                  tuneLength = 10,
-                 metric = "ROC",
+                 metric = "F",
                  verbose = FALSE
 )
 ```
@@ -468,12 +373,19 @@ svm.mod6 <- train(y ~ .,
 svm.mod6
 ```
 
+Plot F-score with different values of cost:
+
 ```{r}
-svm.mod6 %>%
-  test_roc(data = testData) %>%
-  auc()
+plot(svm.mod6)
 ```
-We've improved the AUC metric to 89.34%
+
+
+Print the best tuning parameters that maximize model's ROC:
+
+```{r}
+svm.mod6$bestTune
+```
+
 
 Predict test data:
 
@@ -492,7 +404,16 @@ We've achieved a very nice result and improvement with respect to all the previo
 * Balanced Accuracy is 79.8%
 
 
-### Smote
+Variables importance:
+
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod6)
+```
+
+
+
+## Smote
 
 Another possible approach is to apply the so-called Synthetic minority sampling technique (SMOTE), which down samples the majority class and synthesizes new minority instances by interpolating between existing ones.
 
@@ -514,18 +435,30 @@ svm.mod7 <- train(y ~ .,
                  method = "svmRadial", 
                  trControl = fitControl,
                  tuneLength = 10,
-                 metric = "ROC",
+                 metric = "F",
                  verbose = FALSE
 )
 ```
 
+Print model:
 
 ```{r}
-svm.mod7 %>%
-  test_roc(data = testData) %>%
-  auc()
+svm.mod7
 ```
 
+
+Plot F-score with different values of cost:
+
+```{r}
+plot(svm.mod7)
+```
+
+
+Print the best tuning parameters that maximize model's ROC:
+
+```{r}
+svm.mod7$bestTune
+```
 
 
 Predict test data:
@@ -541,18 +474,26 @@ confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
 ```
 
 This model has quite similar results to the previous one:
-* it slighlty reduces the AUC and the balanced accurcay
+* it slightly reducesthe balanced accuracy
 * but it improves the F1 score
 
 
+Variables importance:
 
-
+```{r}
+#Variable importance by SVM model
+varImp(svm.mod7)
+```
 
 
 As a further step, we could also try the Up-sampling technique, which consists in randomly replicating instances in the minority class. However, due to the high size of the training dataset, the training process and the cross-validation may require a lot of time, therefore we'll now focus of doing som more hyperparameter tuning on the best SVM model found so far, i.e. the one based on under-sampling.
 
 
+
+
 ### More hyperparameter tuning
+
+We'll now try to improve the performance of the model based on down-sampling by trying several hyperparameters configurations.
 
 We first change the 'sampling' parameter:
 
@@ -579,18 +520,22 @@ svm.mod8 <- train(y ~ .,
                  trControl = fitControl,
                  tuneGrid = grid_radial,
                  tuneLength = 10,
-                 metric = "ROC",
+                 metric = "F",
                  verbose = FALSE
 )
 ```
 
 
+Print model:
 ```{r}
-svm.mod8 %>%
-  test_roc(data = testData) %>%
-  auc()
+svm.mod8
 ```
-We've improved the AUC metric to 89.34%
+
+Plot ROC with different values of cost:
+
+```{r}
+plot(svm.mod8)
+```
 
 Predict test data:
 
@@ -605,73 +550,31 @@ confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### Weighting 
-
-We'll now use class weights to impose a heavier cost when errors are made in the minority class.
-
-Let's now create model weights:
-* for 'no' examples we give a lower weight
-* for 'yes' examples we give an higher weight
-
-Notice that the sum of the weights is 1:
+Variables importance:
 
 ```{r}
-model_weights <- ifelse(trainingData$y == "no",
-                        (1/table(trainingData$y)[2]) * 0.5,
-                        (1/table(trainingData$y)[1]) * 0.5)
+#Variable importance by SVM model
+varImp(svm.mod8)
 ```
 
 
-We can now run fit the model by using the new weights:
 
-```{r}
-svm.mod6 <- train(y ~ ., 
-                 data = trainingData,
-                 preProcess = c("center","scale"),
-                 method = "svmRadial", 
-                 trControl = fitControl,
-                 tuneLength = 10,
-                 metric = "ROC",
-                 weights = model_weights, # apply weights
-                 verbose = FALSE
-)
-```
+### TRY APPLYING PCA??? as preprocessing
+
+preProcess = c("pca","scale","center"),
 
 
-```{r}
-svm.mod6
-```
 
-```{r}
-svm.mod6 %>%
-  test_roc(data = testData) %>%
-  auc()
-```
+
+
+
+
+
+
+
+
+
+
 
 
 
