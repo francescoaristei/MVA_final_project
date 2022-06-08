@@ -39,12 +39,19 @@ rm(list = ls())
 At first, let's load the libraries we'll need:
 
 * *dplyr* and *ggplot2* will help us with data manipulation and graphs, respectively.
+
 * *kableExtra* will help us to print beautiful tables.
+
 * *gridExtra* for arranging the layout of the graphs.
+
 * *stats* computes hierarchical cluster analysis on a set of dissimilarities and methods for analyzing it ( _hclust_).
+
 * *cluster* to apply the _agnes_ (agglomerative hierarchical clustering) and the _diana_ (divisive hierarchical clustering).
+
 * *gplots* computes heatmaps for visualizing the distance matrix.
+
 * *factoextra* for MVA methods and graph the clustering structures.
+
 * *FactoMineR* computes hierarchical clustering on principal components.
 
 ```{r message=FALSE,warning=FALSE}
@@ -62,11 +69,47 @@ library(FactoMineR)
 
 # Exploratory data analysis
 
-The dataset we are going to use....
-A bried description of each variable:
-*
-*
-*
+The dataset we are going to use is related with direct marketing campaigns (phone calls) of a Portuguese banking institution. The classification goal is to predict if the client will subscribe a term deposit (variable y).
+A brief description of each variable:
+
+# bank client data:
+
+* age (numeric)
+
+* job : type of job (categorical:
+'admin.','blue-collar','entrepreneur','housemaid','management','retired','self-employed','services','student','technician','unemployed','unknown')
+
+* marital : marital status (categorical: 'divorced','married','single','unknown')
+
+* education (categorical)
+
+* default: has credit in default? (categorical: 'no','yes','unknown')
+
+* balance: bank balance (numeric)
+
+* housing: has housing loan? (categorical: 'no','yes','unknown')
+
+* loan: has personal loan? (categorical: 'no','yes','unknown')
+
+# related with the last contact of the current campaign:
+* contact: contact communication type (categorical: 'cellular','telephone')
+* month: last contact month of year (categorical: 'jan', 'feb', 'mar', ..., 'nov', 'dec')
+* day: last contact day of the week (numeric)
+* duration: last contact duration, in seconds (numeric).
+
+# other attributes:
+
+* campaign: number of contacts performed during this campaign and for this client (numeric)
+
+* pdays: number of days that passed by after the client was last contacted from a previous campaign. (numeric)
+
+* previous: number of contacts performed before this campaign and for this client (numeric)
+
+* poutcome: outcome of the previous marketing campaign (categorical: 'failure','nonexistent','success')
+
+Output variable (desired target):
+
+* y has the client subscribed a term deposit? (binary: 'yes','no')
 
 At first let's load the data: 
 ```{r}
@@ -87,7 +130,7 @@ data$ID <- seq.int(nrow(data))
 head(data)
 ```
 
-We can reorder columns so to have the id column as the first one:
+We can reorder columns in order to have the id column as the first one:
 
 ```{r}
 data <- data %>%
@@ -97,7 +140,6 @@ data <- data %>%
 ```{r}
 head(data)
 ```
-
 
 Check dimension:
 
@@ -134,7 +176,6 @@ str(data)
 ```
 
 As we can see, the categorical variables have been all correctly converted into the 'factor' type.
-
 We can print a portion (a sample of 20) of the table using kable and the pipe operator, to better understand the structure of the variables:
 
 ```{r}
@@ -152,18 +193,27 @@ data %>%
   kbl(caption = "Basic statistics. Marketing Campaigns of Portuguese Bank") %>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
-The previous output allows to understand some important properties of the dataset. Firstly we can see the possible values assumed by each categorical variable.
+The previous output allows to understand some important properties of the dataset. At first we can see the possible values assumed by each categorical variable.
 
 Some relevant observations that can be drawn are:
-* the dataset represent customers with a medium age of 41 years, which a pretty realistic scenario in a bank database
-* the 'marital' variable shows that the main customers of the bank are families, since most of the 'marital' variable values are in the 'married' category
-* the variable 'balance' assumes also negative values, indicating people with a negative balanced in their bank account
-* variables default is highly unbalanced towards the value 'yes', meaning that very few customers have their credit in default
-* the variable 'loan' tells us that most of the bank clients don't have any kind of personal loan
-* the variable 'previous' is characterized by a very low mean value, meaning that the majority of the clients have been contacted only a few times before this specific campaign
-* a value of '-1' in the 'pdays' variable represents clients who have never been contacted before for marketing campaign
+
+* the dataset represent customers with a medium age of 41 years, which is a pretty realistic scenario in a bank database.
+
+* the 'marital' variable shows that the main customers of the bank are member of families, since most of the 'marital' variable values are in the 'married' category.
+
+* the variable 'balance' assumes also negative values, indicating people with a negative balance in their bank account.
+
+* variables default is highly unbalanced towards the value 'yes', meaning that very few customers have their credit in default.
+
+* the variable 'loan' tells us that most of the bank clients don't have any kind of personal loan.
+
+* the variable 'previous' is characterized by a very low mean value, meaning that the majority of the clients have been contacted only a few times before this specific campaign.
+
+* a value of '-1' in the 'pdays' variable represents clients who have never been contacted before for marketing campaign.
+
 * most of the values of the variable 'poutcome' are 'unknown' meaning that the bank doesn't have any data regarding the outcome of previous campaigns for that client. It could be interesting to understand whether the 'unknown' values are associated only to '-1' values of the 'pdays' variable: if it is the case it means that the bank has no information only about customers who have never been contacted before for a campaign.
-* for what regard the target variable 'y', we can see how most of the observations belong to the 'no' class, with only 521 observations belonging to the class 'yes'. This is an important characteristic of out dataset, that we should strongly take into consideration when developing our classification models, in order to avoid giving to much importance to the 'no' class. More observation about this unbalance problem will be discussed in the following sections.
+
+* for what regard the target variable 'y', we can see how most of the observations belong to the 'no' class, with only 521 observations belonging to the class 'yes'. This is an important characteristic that we should strongly take into consideration when developing our classification models, in order to avoid giving too much importance to the 'no' class. More observation about this unbalancing issue will be discussed in the following sections.
 
 ### Check for missing values
 
@@ -178,9 +228,10 @@ There are no missing values!
 
 ### Check variables distribution
 
-Before dealing with outliers, we would like to better inspect the data at our disposal by directly visualizing the distribution of each variable. This will allow us to understand the characteristics of the variables and to decide the strategy to adopt for dealing with eventual outliers.
+Before dealing with outliers, we would like to better inspect the data at our disposal by directly visualizing the distribution of each variable. This will allow us to understand the characteristics of them and to decide the strategy to adopt for dealing with eventual outliers.
 
 At first, let's visualize the distribution of each qualitative variable, by using bar plots.
+Specifically, these plots are drawn taking into consideration the value of the 'y' variable. In this way we can already start to understand just by a visual inspection, the percentage of subscription to the term deposit, for the individuals in the data set, with respect to the value assumed by the variable under inspection.
 
 'job' variable:
 
@@ -198,6 +249,9 @@ p <- ggplot(data, aes(x=job, fill=y))+
 
 p + coord_flip()
 ```
+Is already evident how for some specific type of occupations, the percentage of adhesion to the term deposit is greater than for other kind of jobs.
+For example, the individuals performing blue-collar or management jobs are less likely to adhere to the term deposit than for example retired people.
+
 
 'marital' variable:
 
@@ -219,7 +273,7 @@ p + coord_flip()
 'education' variable:
 
 ```{r message=FALSE,warning=FALSE}
-p <- ggplot(data, aes(x=job, fill=y))+
+p <- ggplot(data, aes(x=education, fill=y))+
   geom_bar(stat="count", width=0.9 )+
   labs(
     title = "education variable",
@@ -231,6 +285,7 @@ p <- ggplot(data, aes(x=job, fill=y))+
 
 p + coord_flip()
 ```
+
 'default' variable:
 
 ```{r message=FALSE,warning=FALSE}
@@ -262,9 +317,9 @@ p <- ggplot(data, aes(x=housing, fill=y))+
 
 p + coord_flip()
 ```
-
 Observations:
-* it can be seen that people with no housing loan are more prone to subscribe for a term deposit with respect to people with a housing loan
+From the plot it can be observed how people having no housing loan are more prone to subscribe for the term deposit.
+This observation is coherent given that people who are already under a debt condition, needs more liquidity in the short term and cannot afford to keep it untouched in some kind of deposit instrument.
 
 
 'loan' variable:
@@ -316,8 +371,8 @@ p + coord_flip()
 ```
 
 Observations:
-* most of the last contacts have happened in the month of may
-* people contacted in October have an higher possibility of signing for a term deposit 
+Most of the last contacts have happened in the month of may, or more generally, during the summer months, which may indicate also the starting period of the marketing campaign.
+Interestingly, seems like people contacted in the month immediately after the months described above, have an higher possibility of signing for a term deposit.
 
 
 'poutcome' variable:
@@ -337,11 +392,8 @@ p + coord_flip()
 ```
 
 Observations:
-* as expected, people who decided to sign for a term deposit in a previous campaign are very prone to re-sign for the current campaign
-* most of the values are 'unknown': 
-
-
-There is some ambiguity on the meaning of 'other' and 'unknown': we may decide to convert into 'unknown' the value of the observations with 'poutcome' set to 'other': 
+As expected, people who decided to sign for a term deposit in a previous campaign are very prone to re-sign for the current campaign, however, most of the values are 'unknown', meaning that the outcome of the campaign for each client, weren't tracked appropriately by the bank.
+One thing who should be highlighted, is that there is some ambiguity on the meaning of 'other' and 'unknown', specifically, the value 'other' seems to be not possible to be interpreted given the information provided, therefore we may decide to convert into 'unknown'.
 
 ```{r}
 data$poutcome[data$poutcome=="other"] <- "unknown"
@@ -384,10 +436,15 @@ g7 <- ggplot(data, aes(x=previous)) +
 
 grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7, nrow=1);
 ```
+The main observation we extracted by a visual inspection of th histograms are the following:
 
+* Most of the clients called by the bank dispose of a bank account with a balance oscillating between 0 to 5000.
 
+* Most of the calls made are done between the second and third week of the month.
 
+* The majority of the calls performed have a really short duration (in second). This may be a crucial variable for understanding the outcome of the campaign for a certain client.
 
+* The majority of the clients are contacted for the first time during this campaign, as can be observed from the distribution of the 'pdays' variable (mostly assumes 0 value).
 
 
 We can visualize also densities depending on the target variable value:
@@ -419,11 +476,10 @@ grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=
 ```
 
 Observations:
-* 'duration' variable has a pretty accentuated role in discrimating between the 2 classes of the target variable
-* variable 'day' has a pretty uniform distribution with a peak aroun the middle of the month (both for 'yes' and 'no' classes)
-* 'campaign' distribution is carachterzied for some small peaks for high values of the variable in corresponding to the class 'no', meaning that the more the client is called, the less it's probable that he will be likely to sign for the term deposit
 
+* As specified before, 'duration' variable has a pretty accentuated role in discrimating between the 2 classes of the target variable, the more the call is long, the more likely is for the client to subscribe in the term deposit.
 
+* 'campaign' distribution is characterized for some small peaks for high values of the variable in corresponding to the class 'no', meaning that the more the client is called, the less it's probable that he will be likely to sign for the term deposit.
 
 We can now get a rough estimate of the distribution of the values for each continuous attribute broken down by each class:
 
@@ -453,10 +509,14 @@ g7 <- ggplot(data,aes(x=y, y=previous, fill=y)) +
 grid.arrange(g1,g2,nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7,nrow=1);
 
 ```
+
 Observations:
-* for the 'balance' variable we can say that we have a very sparse solution: most of the clients have a very low bank account balance, while we have 2 observations with negative value and other 2 observations with a very high balance value.
-* for what regards the 'duration' variable we have 3 samples with very high values of the variable. The distribution of the variable is left skewed, with a very low mean, and there are a lot of values above the interquantile range, which we consider significant for the classification task and we will not consider all of them as outliers.
-* also in 'campaign' we have some observations with too high value: it seems that there are clients that have been contacted more than 40 times, with respectr to an average of arounf 2.8.
+
+* For the 'balance' variable we can say that we have a very sparse solution: most of the clients have a very low bank account balance, while we have 2 observations with negative value and other 2 observations with a very high balance value.
+
+* For what regards the 'duration' variable we have 3 samples with very high values of the variable. The distribution of the variable is left skewed, with a very low mean, and there are a lot of values above the interquantile range, which we consider significant for the classification task and we will not consider all of them as outliers.
+
+* Also in 'campaign' we have some observations with too high value: it seems that there are clients that have been contacted more than 40 times, with respect to an average of around 2.8.
 
 We think it is interesting to see the results for the clients with the highest values of 'balance':
 
@@ -496,10 +556,7 @@ ggplot(data,aes(x=y, y=balance, fill=y)) +
     geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 ```
 
-
-
-We think also that the variable 'campaign' may be pretty indicator for predicting the our target variable, since it represents the number of times a client has been contacted during the actual marketing campaign:
-
+We think also that the variable 'campaign' may be a good indicator for predicting the target variable, since it represents the number of times a client has been contacted during the actual marketing campaign:
 
 ```{r}
 arr = c(order(data$campaign, decreasing=TRUE)[1:10])
@@ -508,8 +565,6 @@ data[arr,]
 `
 
 What we can understand from the above is that  calling many times a client has not a positive effect on their willingness to sign for the term deposit.
-
-
 We' ll remove only the first 2 observations with the highest campaign, since they consider clients called more that 40 times, which is a really high value that cannot be considered much realistic, especially considering the mean of that variable (2.8):
 
 ```{r}
@@ -535,14 +590,13 @@ arr = c(order(data$duration, decreasing=TRUE)[1:20])
 data[arr,]
 ```
 
-We think this variable is crucial for discriminating between the 2 classes: indeed an higher call duration indicates an higher probability for the clien to apply for the term deposit.
+As pointed out several times before, we thing that this variable is crucial for discriminating between the 2 classes: indeed an higher call duration indicates an higher probability for the client to apply for the term deposit.
 We'll remove the first 3 observations with highest value of 'duration':
 
 ```{r}
 arr = c(order(data$duration, decreasing=TRUE)[1:3])
 data = data[-arr, ]
 ```
-
 
 Let's see how the distribution for that variables changes:
 
@@ -555,8 +609,6 @@ ggplot(data,aes(x=y, y=duration, fill=y)) +
  ggplot(data, aes(x=duration)) +
     geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 ```
-
-
 
 In could be interesting to visualize the correlation among these continuous variables:
 
@@ -571,10 +623,9 @@ ggpairs(data, columns=cols,
 We have very low correlation values, except for the pair of variables 'pdays' and 'previous'.
 
 
-
 ## Insights about the data
 
-With the obtained knowledge of the distribution of the variables, we can perform further analysis of each customer characteristic in order to investigate its influence on the subscription rate, i.e. on the rate of subscriptions to the term deposit.
+With the obtained knowledge of the distribution of the variables, we can perform further analysis for each customer characteristics in order to investigate its influence on the subscription rate, i.e. on the rate of subscriptions to the term deposit.
 
 Let's better visualize the scatter plot of the 2 variables 'campaign' and 'duration', encoding the target class in the plot:
 
@@ -584,14 +635,15 @@ ggplot(data, aes(x=duration, y=campaign, shape=y, color=y, size=y)) +
 ```
 
 As shown in the above plot, 'duration' and 'campaign' variables allow to create approximately 2 clusters of customers:
-* almost all the 'yes' clients are characterized by low value of 'campaign' and they may have also high 'duration'
-* 'no' clients have higher values on campaign and low 'duration' values
+
+* almost all the 'yes' clients are characterized by low value of 'campaign' and they may have also high 'duration'.
+
+* 'no' clients have higher values on campaign and low 'duration' values.
 
 An important observation is that an high value of the 'campaign' variable makes the clients to refuse to sign for the term deposit: almost all observations with 'campaign' value above 10 have 'no' as target variable value.
 
 
-
-It may be useful to better visualize the scatter plot of the 2 variables 'age' and 'contact', because it is more probable that older people are more used to be contacted by telephone:
+It may be useful to better visualize the scatter plot of the 2 variables 'age' and 'contact', because it is more probable that older people are more used to be contacted by telephone rather than cellular:
 
 ```{r}
 ggplot(data, aes(x=contact, y=age, shape=y, color=y, size=y)) +
@@ -601,12 +653,13 @@ ggplot(data, aes(x=contact, y=age, shape=y, color=y, size=y)) +
 It seems the there is no relationship between 'contact' and 'age'.
 
 
-It could be interesting to better visualize the scatter plot of the 2 variables 'age' and 'balance', encoding the target class in the plot:
+Another possible observation could be extracted from the scatter plot of the 2 variables 'age' and 'balance':
 
 ```{r}
 ggplot(data, aes(x=age, y=balance)) +
   geom_point()
 ```
+
 The above scatter plot doesn't show any strong relationship among the 2 variables: most of the customers contacted by the bank has low salary, independently from the age.
 
 
@@ -624,12 +677,8 @@ corrplot(res, type = "upper", order = "hclust",
 ```
 The results confirms what we observed before: only 'pdays' and 'previous' are positively correlated to each other.
 
-
-
-SUBSCRIPTION RATE PER AGE
+### Subscription rate per age
 ```{r}
-# convert age variable into bins
-#Coverting pdays variable into bins
 data2 = data
 
 data2$age = cut(data2$age, breaks = c(0, 29, 39, 49, 59, 69, 100),
@@ -656,13 +705,14 @@ data2 %>%
 ```
 
 The above plot suggests that:
-* clients with a age above 60 have the highest subscription rate: since the percentage of 'yes' is very close to that of 'no', meaning that a lot of the people contacted by the bank signed for the term deposit
+
+* clients with a age above 60 have the highest subscription rate: since the percentage of 'yes' is very close to the one of 'no', meaning that a lot of the people contacted by the bank signed for the term deposit.
 
 * it is not surprising to see such a pattern because the main investment objective of older people is saving for retirement while the middle-aged group tend to be more aggressive with a main objective of generating high investment income. Term deposits, as the least risky investment tool, are more preferable to the eldest.
+
 * The youngest may not have enough money or professional knowledge to engage in sophisticated investments, such as stocks and mutual funds. Term deposits provide liquidity and generate interest incomes that are higher than the regular saving account, so term deposits are ideal investments for students.
 
 We could better visualize this characteristics by taking into account only customers that signed a term deposit:
-
 
 
 ```{r}
@@ -679,10 +729,10 @@ data_yes %>%
     scale_y_continuous(labels = scales::percent)
 ```
 
-The plot clearly shows the the age range of people most contacted by the bank is the one between 30 and 60, this explains the high percentage of subscriptions. But this may be misleading, as we saw above that older people are much more likely to sign.
+The plot clearly shows that the age range of people most contacted by the bank is the one between 30 and 60, this explains the high percentage of subscriptions. But this may be misleading, as we saw above that older people are much more likely to sign.
 
 
-# SUBSCRIPTION RATE PER JOB
+### Subscription rate per job
 
 ```{r}
 data %>% 
@@ -699,12 +749,13 @@ data %>%
 ```
 
 The plot above allows to draw other interesting conclusions, also related to what we saw before:
-* the percentage of 'yes' is very high for 'retired' and 'student' categories, as we already found above regarding the age ranges
+
+* the percentage of 'yes' is very high for 'retired' and 'student' categories, as we already found above when studying the age ranges.
 
 
-subscription rate by balance level
+### Subscription rate by balance level
 
-In order to better understand the effect of the balance on the probability to sign for a term contract, we can visualize it by means of a histogram
+In order to better understand the effect of the balance on the probability to sign for a term contract, we can visualize it by means of an histogram:
 
 
 ```{r}
@@ -714,12 +765,6 @@ data2$balance = cut(data2$balance, breaks = c(-5000, -1,  2000, 5000, 10000, 150
                  labels = c('<0', '0-2000', '2000-5000','50000-10000', '10000-15000', '>150000'
                             ))
 ```
-
-
-data2$age = cut(data2$age, breaks = c(0, 29, 39, 49, 59, 69, 100),
-                 labels = c('<30','30-39','40-49',
-                            '50-59','60-69','70+'
-                            ))
 
 
 ```{r}
@@ -734,11 +779,10 @@ data2 %>%
     scale_y_continuous(labels = scales::percent)
 ```
 Observations:
-* clients with a balance in the range 2000-5000 are the ones with a highest subscription rate
 
+* Clients with a balance in the range 2000-5000 are the ones with a highest subscription rate
 
-
-In order to confirm our hypoteses, we can combine together the information from the ages with that of the balances
+In order to confirm our hypotheses, we can combine together the information from the ages with that of the balances:
 
 ```{r}
 data2 <- data
@@ -762,6 +806,10 @@ data_yes %>%
     coord_flip()
 ```
 
+
+??????????????????????????????????
+
+
 We can see that the highest number of 'yes' is in the age range '30-39' for clients with a balance between '0-5000', this means young clients with a sufficient balance are the most prone to sign for the term deposit.
 
 
@@ -773,7 +821,7 @@ We'll now prepare the dataset for the classification task. We remind that our go
 
 We think that the variables 'contact' and 'day' are not very useful for the classification task:
 
-* for what regards the 'day' variable we have seen in the previous plots how it' density is pretty uniform along the days of the month, therefore we'll not consider that variable for performing the classification algorithms
+* for what regards the 'day' variable, we have seen in the previous plots how it's density is pretty uniform along the days of the month, therefore we'll not consider this variable for performing the classification algorithms.
 
 * the variable 'contact' indicates the type of mean used to contact the customers: the above plots show that it is not an interesting feature for the classification task.
 
@@ -797,11 +845,15 @@ summary(data$pdays)
 ```
 
 
+```{r}
+save(data, file="preprocessed_data.RData")
+```
+
 
 ### Convert categorical variables
 
-Since most classification algorithm work with continuous variables, we need to use a one-hot encoding of them.
-In order to do that, we'll convert all the categorical variables into 'dummy' variables, i.e. we  represent a categorical variable as a numerical variable for each category that takes on one of two values: zero or one
+Since most classification algorithms work with continuous variables, we need to one-hot encode them.
+In order to do that, we'll convert all the categorical variables into 'dummy' variables, i.e. we  represent a categorical variable as a numerical variable for each category that takes on one of two values: zero or one.
 
 We'll use the _dummyCols_ function of the *fastDummes* package of R:
 
@@ -822,6 +874,7 @@ head(data_dummy)
 ```{r}
 summary(data_dummy)
 ```
+
 As we can see, the creation of the dummy variables created a variable also for the value 'other' of the 'poutcome' variable, which we converted before into the 'unknown' value. Indeed the new variable 'poutcome_other' has value 0 for all individuals, we'll therefore drop it from our dataframe:
 
 ```{r}
@@ -864,7 +917,7 @@ data_dummy %>%
 
 ### Multivariate outliers
 
-Now that we have the explored enough the data and converted it into the final format we'll use in the following, we can perform some multivariate outlier detection algorithms, for detecting and removing outliers in the multivariate space.
+Now that we have the explored enough the data and converted it into the final format, we can perform some multivariate outliers detection algorithms, for detecting and removing outliers in the multivariate space.
 
 One way to check for multivariate outliers  (non-parametric approach) is to use the LOF ("local outlier factor") algorithm, which identifies density-based local outliers.
 
@@ -901,7 +954,7 @@ plot(sort(lof), type = "l",  main = "LOF (K = 5)",
 
 Looks like outliers start around a LOF value of 2.0.
 
-Let's show the indexes for 5 most outlying observations
+Let's show the indexes for 5 most outlying observations:
 
 ```{r}
 lof_with_names = lof
@@ -909,7 +962,7 @@ names(lof_with_names) <- 1:nrow(data_dummy)
 sort(lof_with_names, decreasing = TRUE)[1:5]
 ```
 
-Let's first find the indexes of the outliers with a lof score above 2.0:
+Indexes of the outliers with a lof score above 2.0:
 
 ```{r}
 outliers_lof <- which(lof > 2.0)
@@ -925,8 +978,7 @@ length(outliers_lof)
 outliers_lof
 ```
 
-
-We will simply remove the found outliers (found with lof) from the dataset (taking into account that k-means algorithm is very sensible to outliers):
+We will simply remove the found outliers (found with lof) from the dataset (taking into account that algorithms such as k-means are very sensitive to outliers):
 
 ```{r}
 data_dummy = data_dummy[-outliers_lof,] 
@@ -941,14 +993,15 @@ dim(data_dummy)
 The outliers have been correctly removed!
 
 
-
 ### PCA
 
-A further step to gain more insights about the dataset could be to perform dimensional reductions by applying factor analysis methods.
+A further step to gain more insights about the dataset could be to perform dimensionality reduction by applying factor analysis methods.
 
 Since we don't have specific groups of variables, we'll perform first a PCA by using the continuous features and by adding the categorical variables as supplementary information:
+
 * our purpose is to find some useful relationships between variables and individuals, with respect to the class
-* we will exploit these insights for performing the classification
+
+* we will exploit these insights to perform classification
 
 We'll use *FactoMineR* for performing the PCA:
 
@@ -969,7 +1022,6 @@ fviz_eig(res.pca)
 ```{r}
 ?fviz_pca_ind
 ```
-
 
 
 Individuals plot:
@@ -1000,7 +1052,11 @@ fviz_pca_var(res.pca,
              repel = TRUE     # Avoid text overlapping
              )
 ```
-The above PCA plot shows an high correlation for the variables 'previous' and 'pdays' as well as for the variables 'campaign' and 'day'. Variable 'duration' is negatively correlated with 'campaign' and 'day'. While variables balance and age are not well represented.
+LE VARIABILI SCRITTE SOTTO NON COMPAIONO NEL PLOT ??????????????????????????????
+
+The above PCA plot shows an high correlation for the variables 'previous' and 'pdays' as well as for the variables 'campaign' and 'day'. Variable 'duration' is negatively correlated with 'campaign' and 'day'. Jobs related to an high income like 'job_management' and 'job_admin' are as well correlated.
+The same can be said for 'job_retired' and 'age', the more the age is, the more likely the client will have retired from the job market. Variables balance and age are not well represented.
+
 We may perform the plot on the 3rd and 4th PCs:
 
 ```{r}
@@ -1011,6 +1067,8 @@ fviz_pca_var(res.pca,
              repel = TRUE     # Avoid text overlapping
              )
 ```
+ANCHE QUA SEMBRA CHE LE VARIABILI NON SIANO COSI' TANTO RELAZIONATE??????????
+
 We can see that on the 2nd factorial plane the variables 'balance' and 'age' are very correlated with each other, and they are very correlated with the 3rd dimension. 
 The correlation between 'balance' and 'age' may be easily interpretable with the fact that younger people are unlikely to have high balances in their bank account.
 
@@ -1027,8 +1085,7 @@ fviz_pca_biplot(res.pca, repel = TRUE,
 ```
 
 Since PCA tries to maximize the variance inside the dataset, it is not so useful for a classification task.
-
-Our next step is therefore to try to apply an LDA, just for visualizing better the data:
+Our next step is therefore to try to apply an LDA, just for visualizing better the data, specifically, we tried to understand if the two classes could be linearly separated:
 
 ```{r}
 library(MASS)
@@ -1039,16 +1096,21 @@ library(MASS)
 plot(model)
 ```
 
+?????? CONCLUSIONI???????
 
 
 ### Splitting
 
-We' ll split the dataset into training and validattion:
+We' ll split the dataset into training and validation:
+
 * 80% of the original data will be used for training
+
 * the reaming 20% will be used to evaluate the final performance of the classifier
 
-An important remark is that the considered dataset is highly unbalanced: most of the customers belong to the 'no' values of the target variable. For that reason, and in other to have a fair evaluation of our algorithms we'll perform a stratified splitting:
+An important remark is that the considered dataset is highly unbalanced: most of the customers belong to the 'no' values of the target variable. For that reason, and in order to have a fair evaluation of our algorithms we'll perform a stratified splitting:
+
 * we'll select 80% among all the clients belonging to the positive class for training and 20% for testing
+
 * we'll select 80% among all the clients belonging to the negative class for training and 20% for testing
 
 In this way we'll have the same distribution of observations inside the two classes in both the training and test set.
@@ -1080,7 +1142,6 @@ table(trainingData$y)
 ```
 
 
-
 In the training data we have 3185 samples in the 'no' class and 412 samples in the 'yes' class.
 
 
@@ -1095,68 +1156,11 @@ table(testData$y)
 
 In the test data we have 797 samples in the 'no' class and 104 samples in the 'yes' class.
 
-
-
-
-### Scaling
-
-We' ll perform the scaling according to the needs of each different classifier we'll use, since not all algorithms need scaled data.
-
-For the moment we build also a scaled version of the dataset, so that we can re-use it later on:
-```{r}
-str(data_dummy)
-```
+We can save the training and test dataset, so that we can direclty use them in the main algorithms:
 
 ```{r}
-#Normalizing continuous variables
-normalize <- function(x) {
-  return ((x - min(x)) / (max(x) - min(x)))
-}
-data_dummy_scaled = data_dummy
-data_dummy_scaled$age = normalize(data_dummy_scaled$age)
-data_dummy_scaled$balance = normalize(data_dummy_scaled$balance)
-data_dummy_scaled$campaign = normalize(data_dummy_scaled$campaign)
-data_dummy_scaled$duration = normalize(data_dummy_scaled$duration)
-data_dummy_scaled$previous = normalize(data_dummy_scaled$previous)
-```
-
-
-```{r}
-data_dummy_scaled[,"y"] = as.factor(data_dummy_scaled[,"y"])
-str(data_dummy_scaled)
-```
-
-```{r}
-summary(data_dummy_scaled)
-```
-
-
-We can now re-preform the splitting on the scaled data:
-
-```{r}
-deposit_yes <- data_dummy_scaled[which(data_dummy_scaled$y == 1), ]  # all yes's of target class
-deposit_no <- data_dummy_scaled[which(data_dummy_scaled$y ==  0), ]  # all no's of target class
-
-training_yes <- deposit_yes[deposit_yes_training_rows, ]  
-training_no <- deposit_no[deposit_no_training_rows, ]
-trainingData_scaled <- rbind(training_yes, training_no)  #combining chosen observations
-glimpse(trainingData_scaled)
-table(trainingData_scaled$y)
-```
-
-```{r}
-# Create Test Data
-test_yes <- deposit_yes[-deposit_yes_training_rows, ]
-test_no <- deposit_no[-deposit_no_training_rows, ]
-testData_scaled <- rbind(test_yes, test_no)  #combining chosen observations
-glimpse(testData_scaled)
-table(testData_scaled$y)
-```
-
-We can save the scaled and the not scaled training and test dataset, so that we can direclty use them in the main algorithms:
-
-```{r}
-save(trainingData, testData, trainingData_scaled, testData_scaled, file = "data.RData")
+#save(trainingData, testData, trainingData_scaled, testData_scaled, file = "data.RData")
+save(trainingData, testData, file = "data.RData")
 ```
 
 
