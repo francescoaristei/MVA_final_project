@@ -48,7 +48,7 @@ trainingData$y <- as.factor(ifelse(trainingData$y=='1',"yes","no"))
 ```
 
 Let's visualize the main statistics of the training data
-```{r}
+```{r message=FALSE,warning=FALSE}
 library(dplyr)
 library(kableExtra)
 library(stats)
@@ -60,10 +60,7 @@ trainingData %>%
 
 Test data:
 
-```{r}
-library(dplyr)
-library(kableExtra)
-library(stats)
+```{r message=FALSE,warning=FALSE}
 testData %>% 
   summary(.) %>% 
   kbl(caption = "Basic statistics. Test data") %>%
@@ -99,7 +96,7 @@ We' ll use the *caret* package for applying KNN.
 
 At first let's load the package:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 library("caret")
 ```
 
@@ -183,7 +180,7 @@ fitControl <- trainControl(method = "cv",
 
 Let's retrain the model using the F-score to select k:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 knn.mod2 <- train(y ~ ., 
                  data = trainingData, # train data 
                  preProcess = c("center","scale"),
