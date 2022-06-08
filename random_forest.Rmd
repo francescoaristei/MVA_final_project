@@ -2,11 +2,14 @@
 title: "Random Forest"
 author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
 date: "`r format(Sys.time(), '%d %B %Y')`"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 load("data.RData")
+data <- load("preprocessed_data.RData")
 set.seed(67600)
 ```
 
@@ -92,19 +95,18 @@ oob_per_mtry <- function(mtry){
 mtry_vals = c(1:54)
 oob_vals = lapply(mtry_vals, oob_per_mtry)
 plot(mtry_vals, oob_vals)
-png("oob_per_mtry_with_ohot.png")
 ```
-Even though we have sparsed results, there seem to be a global minimum around 23.
+Even though we have sparsed results, there seem to be a global minimum around 30.
 
 We'll then recompute our Random Forest model with this *mtry* paramter:
 ```{r}
-model = randomForest(formula = y ~ age + balance + duration + campaign + previous + poutcome_failure + poutcome_success + poutcome_unknown + job_admin + job_blue_collar + job_entrepreneur + job_housemaid + job_management + job_retired + job_self_employed + job_services + job_student + job_technician + job_unemployed + job_unknown + marital_divorced + marital_married + marital_single + education_primary + education_secondary + education_tertiary + education_unknown + default_no + default_yes + housing_no + housing_yes + loan_no + loan_yes + month_apr + month_aug + month_dec + month_feb + month_jan + month_jul + month_jun + month_mar + month_may + month_nov + month_oct + month_sep + pdays_never + pdays_u3m + pdays_u6m + pdays_u9m + pdays_u12m + pdays_u18m + pdays_o18m, data=trainingData, ntree=500, mtry=23)
-print(rf)
+model = randomForest(formula = y ~ age + balance + duration + campaign + previous + poutcome_failure + poutcome_success + poutcome_unknown + job_admin + job_blue_collar + job_entrepreneur + job_housemaid + job_management + job_retired + job_self_employed + job_services + job_student + job_technician + job_unemployed + job_unknown + marital_divorced + marital_married + marital_single + education_primary + education_secondary + education_tertiary + education_unknown + default_no + default_yes + housing_no + housing_yes + loan_no + loan_yes + month_apr + month_aug + month_dec + month_feb + month_jan + month_jul + month_jun + month_mar + month_may + month_nov + month_oct + month_sep + pdays_never + pdays_u3m + pdays_u6m + pdays_u9m + pdays_u12m + pdays_u18m + pdays_o18m, data=trainingData, ntree=500, mtry=30)
+print(model)
 ```
 
 
 ```{r}
-pred = predict(rf, testData, type="class")
+pred = predict(model, testData, type="class")
 table(pred=pred, true=testData$y)
 paste(mean(pred==testData$y), bal_accuracy_vec(pred, truth=testData$y, estimator="binary"))
 ```
@@ -115,8 +117,16 @@ tab$byClass['F1']
 ```
 Because we had very little effect on accuracy using the number of variable optimization, we tried to use the dataset without the one-hot encoding.
 
+
+
+
+
+
+
+
 # Without one-hot
 ## Default run
+
 
 ```{r}
 set.seed(123)
@@ -150,6 +160,7 @@ print(rf)
 ```{r}
 pred = predict(rf, testData_withcat, type="class")
 table(pred=pred, true=testData_withcat$y)
+paste(mean(pred==testData_withcat$y), bal_accuracy_vec(pred, truth=testData_withcat$y, estimator="binary"))
 ```
 
 ```{r}
