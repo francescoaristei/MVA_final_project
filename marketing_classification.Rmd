@@ -436,7 +436,7 @@ g7 <- ggplot(data, aes(x=previous)) +
 
 grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7, nrow=1);
 ```
-The main observation we extracted by a visual inspection of th histograms are the following:
+The main observations we extracted by a visual inspection of the histograms are the following:
 
 * Most of the clients called by the bank dispose of a bank account with a balance oscillating between 0 to 5000.
 
@@ -477,7 +477,7 @@ grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=
 
 Observations:
 
-* As specified before, 'duration' variable has a pretty accentuated role in discrimating between the 2 classes of the target variable, the more the call is long, the more likely is for the client to subscribe in the term deposit.
+* As specified before, 'duration' variable has a pretty accentuated role in discriminating between the 2 classes of the target variable, the more the call is long, the more likely is for the client to subscribe in the term deposit.
 
 * 'campaign' distribution is characterized for some small peaks for high values of the variable in corresponding to the class 'no', meaning that the more the client is called, the less it's probable that he will be likely to sign for the term deposit.
 
@@ -565,7 +565,7 @@ data[arr,]
 `
 
 What we can understand from the above is that  calling many times a client has not a positive effect on their willingness to sign for the term deposit.
-We' ll remove only the first 2 observations with the highest campaign, since they consider clients called more that 40 times, which is a really high value that cannot be considered much realistic, especially considering the mean of that variable (2.8):
+We' ll remove only the first 2 observations with the highest campaign, since they consider clients called more than 40 times, which is a really high value that cannot be considered much realistic, especially considering the mean of that variable (2.8):
 
 ```{r}
 arr = c(order(data$campaign, decreasing=TRUE)[1:2])
@@ -610,7 +610,7 @@ ggplot(data,aes(x=y, y=duration, fill=y)) +
     geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8)
 ```
 
-In could be interesting to visualize the correlation among these continuous variables:
+In could be interesting to visualize the correlations among these continuous variables:
 
 ```{r}
 cols = c("age", "balance", "day", "duration", "campaign", "pdays", "previous")
@@ -750,7 +750,7 @@ data %>%
 
 The plot above allows to draw other interesting conclusions, also related to what we saw before:
 
-* the percentage of 'yes' is very high for 'retired' and 'student' categories, as we already found above when studying the age ranges.
+* the percentage of 'yes' is very high for 'retired' and 'student' categories, as we already found out above when studying the age ranges.
 
 
 ### Subscription rate by balance level
@@ -852,7 +852,7 @@ save(data, file="preprocessed_data.RData")
 
 ### Convert categorical variables
 
-Since most classification algorithms work with continuous variables, we need to one-hot encode them.
+Since most classification algorithms work with continuous variables, we need to one-hot encode categorial variables.
 In order to do that, we'll convert all the categorical variables into 'dummy' variables, i.e. we  represent a categorical variable as a numerical variable for each category that takes on one of two values: zero or one.
 
 We'll use the _dummyCols_ function of the *fastDummes* package of R:

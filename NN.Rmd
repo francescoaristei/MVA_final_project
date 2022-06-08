@@ -5,7 +5,7 @@ date: "`r format(Sys.time(), '%d %B %Y')`"
 fontsize: 10 pt
 geometry: margin=0.5in
 output:
-  pdf_document:
+  html_document:
     fig_width: 6
     fig_height: 4
     toc: true
@@ -13,7 +13,7 @@ output:
     number_sections: true
     fig_caption: True
     df_print: kable
-  html_document:
+  pdf_document:
     fig_width: 6
     fig_height: 4
     toc: true
@@ -119,12 +119,12 @@ fitControl <- trainControl(method = "cv",
                            # Estimate class probabilities
                            classProbs = TRUE,
                            summaryFunction = prSummary,
-                           verboseIter = TRUE # to visualize running process
+                           verboseIter = FALSE
 )
 ```
 
 
-## NN baseline
+## Baseline model
 
 Let's run a simple neural network by specifying the method 'nnet' in the 'train' function: this method implements a very trivial feed-forward neural network with a single hidden layer. 
 
@@ -155,7 +155,6 @@ nn.mod1 <- train(y ~ .,
                  trControl = fitControl,
                  tuneGrid = grid_nn,
                  metric = "F",
-                 verbose = FALSE,
                  maxit = 5000
 )
 ```
@@ -173,7 +172,7 @@ plot(nn.mod1)
 ```
 
 
-Print the best tuning parameters that maximize model's ROC:
+Print the best tuning parameters that maximize model's F-score:
 
 ```{r}
 nn.mod1$bestTune
@@ -230,7 +229,7 @@ We change the grid of parameters:
 
 ```{r}
 grid_nn <- expand.grid(
-  size = c(5, 10, 12), # neurons in the hidden layer
+  size = c(2, 5, 10, 12), # neurons in the hidden layer
   decay = c(0.0001, 0.001, 0.01, 0.1)) # decay rate
 ```
 
@@ -244,9 +243,8 @@ nn.mod2 <- train(y ~ .,
                  trControl = fitControl,
                  tuneGrid = grid_nn,
                  metric = "F",
-                 verbose = FALSE,
-                 maxit = 50,
-                 weights = model_weights, # apply weights
+                 maxit = 5000,
+                 weights = model_weights # apply weights
 )
 ```
 
@@ -256,11 +254,39 @@ Print model:
 nn.mod2
 ```
 
+Plot F-score with different values of cost:
+
 ```{r}
-svm.mod6 %>%
-  test_roc(data = testData) %>%
-  auc()
+plot(nn.mod2)
 ```
 
 
+Print the best tuning parameters that maximize model's F-score:
+
+```{r}
+nn.mod2$bestTune
+```
+
+
+Predict test data:
+
+```{r}
+y.nn.pred = predict(nn.mod2, testData)
+```
+
+Confusion matrix:
+
+```{r}
+confusionMatrix(y.nn.pred, testData$y, mode = "prec_recall", positive = "yes")
+```
+
+The model achieves a very high balanced accuracy of around 80% and an F1 score of 50%
+
+
+Variables importance:
+
+```{r}
+#Variable importance by SVM model
+varImp(nn.mod2)
+```
 

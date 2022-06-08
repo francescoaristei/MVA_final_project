@@ -49,7 +49,7 @@ trainingData$y <- as.factor(ifelse(trainingData$y=='1',"yes","no"))
 
 Let's visualize the main statistics of the training data:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 library(dplyr)
 library(kableExtra)
 library(stats)
@@ -62,10 +62,7 @@ trainingData %>%
 
 Test data:
 
-```{r}
-library(dplyr)
-library(kableExtra)
-library(stats)
+```{r message=FALSE,warning=FALSE}
 testData %>% 
   summary(.) %>% 
   kbl(caption = "Basic statistics. Test data") %>%
@@ -101,7 +98,7 @@ We' ll use the *caret* package for applying SVM, which performs a non-linear cla
 
 At first let's load the *caret* package:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 library("caret")
 ```
 
@@ -129,7 +126,7 @@ Let's first run the SVM with a linear kernel, which is a simple linear classifie
 We will use this first SVM model as a baseline for building the following ones. 
 Again we'll center and scale the variables to make their scale comparable, and we'll use the _F-score_ as a validation metric:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 #install.packages("MLmetrics")
 library(MLmetrics)
 svm.mod1 <- train(y ~ ., 
@@ -175,7 +172,7 @@ varImp(svm.mod1)
 
 We can now perform hyperparameter tuning of the 'C' parameter: we can create a grid with different values of it:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 svm.mod2 <- train(y ~ ., 
                  data = trainingData, # train data  
                  preProcess = c("center","scale"),
@@ -233,7 +230,7 @@ varImp(svm.mod2)
 *Caret* package allows to use a radial kernel function, that allows to find a non-linear classification boundary among the 2 classes.
 In this case we'll use the 'tuneLength' parameter which randomly tries several parameters combinations.
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 svm.mod3 <- train(y ~ ., 
                  data = trainingData, # train data  
                  preProcess = c("center","scale"),
@@ -291,7 +288,7 @@ varImp(svm.mod3)
 *Caret* package allows also to use a polynomial kernel function, that allows to find a non-linear classification boundary among the 2 classes.
 We'll use the 'tuneLength' parameter which randomly tries several parameters combinations.
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 svm.mod4 <- train(y ~ ., 
                  data = trainingData, # train data  
                  preProcess = c("center","scale"),
@@ -359,7 +356,7 @@ fitControl$sampling <- "down"
 
 Fit the model:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 svm.mod6 <- train(y ~ ., 
                  data = trainingData, # train data  
                  preProcess = c("center","scale"),
@@ -402,8 +399,9 @@ confusionMatrix(y.svm.pred, testData$y, mode = "prec_recall", positive = "yes")
 ```
 
 We've achieved a very nice result and improvement with respect to all the previously analyzed models:
-* F1 score is 48%
-* Balanced Accuracy is 79.8%
+
+* F1 score is 50%
+* Balanced Accuracy is 82%
 
 
 Variables importance:
@@ -424,13 +422,13 @@ We add the sampling parameter to the 'fitControl' function:
 
 ```{r}
 fitControl$sampling <- "smote"
-fitControl$verboseIter = TRUE # to visualize running process
+fitControl$verboseIter = FALSE # to visualize running process
 ```
 
 
 Fit the model:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 svm.mod7 <- train(y ~ ., 
                  data = trainingData, # train data  
                  preProcess = c("center","scale"),
@@ -514,7 +512,7 @@ grid_radial <- expand.grid(
 
 We can now train the model:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 svm.mod8 <- train(y ~ ., 
                  data = trainingData, # train data  
                  preProcess = c("center","scale"),
@@ -560,10 +558,6 @@ varImp(svm.mod8)
 ```
 
 
-
-### TRY APPLYING PCA??? as preprocessing
-
-preProcess = c("pca","scale","center"),
 
 
 
