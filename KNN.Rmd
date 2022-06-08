@@ -5,7 +5,7 @@ date: "`r format(Sys.time(), '%d %B %Y')`"
 fontsize: 10 pt
 geometry: margin=0.5in
 output:
-  pdf_document:
+  html_document:
     fig_width: 6
     fig_height: 4
     toc: true
@@ -13,7 +13,7 @@ output:
     number_sections: true
     fig_caption: True
     df_print: kable
-  html_document:
+  pdf_document:
     fig_width: 6
     fig_height: 4
     toc: true
@@ -175,7 +175,7 @@ Indeed KNN is run by default by using 'accuracy' as an evaluation metric. In our
 ```{r}
 fitControl <- trainControl(method = "cv",
                            number = 10, 
-                           ## Estimate class probabilities
+                           #Estimate class probabilities
                            classProbs = TRUE,
                            summaryFunction = prSummary
 )
