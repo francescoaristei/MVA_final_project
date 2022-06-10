@@ -980,10 +980,15 @@ We'll use *FactoMineR* for performing the PCA:
 str(data_dummy)
 ```
 
+```{r}
+?PCA
+```
+
+We'll threat as supplementary the 'y' variables:
 
 ```{r}
 data_ = data_dummy[2:18]
-res.pca = PCA(data_, scale.unit=TRUE, ncp=5, graph=F)
+res.pca = PCA(data_, scale.unit=TRUE, quali.sup = 7, ncp=5, graph=F)
 ```
 
 ```{r}
