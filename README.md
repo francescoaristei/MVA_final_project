@@ -1,4 +1,4 @@
-# MVA_final_project
+# Multivariate Analysis Final Project
 
 Classification problem based on data coming from a Marketing campaign of Portuguese banking institution.
 We studied the dataset structure and the underlying patterns in order to predict the likelihood of a client to subscribe for the term deposit offered by the Bank.
